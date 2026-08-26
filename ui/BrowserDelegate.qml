@@ -3,87 +3,82 @@ import QtQuick
 Item {
     id: delegateRoot
 
-    width: ListView.view ? ListView.view.width : 0
-    height: root.rowHeight
+    width: root.cellWidth
+    height: root.cellHeight
 
-    readonly property bool selected: ListView.isCurrentItem
+    readonly property bool selected: index === root.selectedIndex
 
-    Rectangle {
-        anchors.fill: parent
-        anchors.leftMargin: 4
-        anchors.rightMargin: 4
-        radius: 8
-        color: delegateRoot.selected ? "#1a00e5ff"
-                                     : (mouse.containsMouse ? "#0d64748b"
-                                                            : "transparent")
-        border.width: delegateRoot.selected ? 1 : 0
-        border.color: "#6600e5ff"
+    Text {
+        id: shortcutHint
+
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        text: model.shortcutHint
+        color: delegateRoot.selected ? root.accent : root.textFaint
+        font.family: "Jura"
+        font.pixelSize: 12
+        font.weight: Font.Light
+        horizontalAlignment: Text.AlignHCenter
     }
 
-    Item {
-        id: iconSlot
+    Rectangle {
+        id: tile
 
-        anchors.left: parent.left
-        anchors.leftMargin: 16
-        anchors.verticalCenter: parent.verticalCenter
-        width: 32
-        height: 32
+        anchors.top: shortcutHint.bottom
+        anchors.topMargin: 6
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: 56
+        height: 56
+        radius: 14
+        color: mouse.containsMouse ? "#ffffff" : "#eef1f5"
+        border.width: delegateRoot.selected ? 2 : 1
+        border.color: delegateRoot.selected ? root.accent : "#33f2f4f6"
 
-        Loader {
-            id: iconLoader
-
+        Item {
             anchors.fill: parent
-            source: "XdgIconLoader.qml"
+            anchors.margins: 7
 
-            onLoaded: item.iconName = model.iconName
-        }
+            Loader {
+                id: iconLoader
 
-        Rectangle {
-            anchors.fill: parent
-            visible: iconLoader.status !== Loader.Ready
-            radius: 16
-            color: "#e2e8f0"
+                anchors.fill: parent
+                source: "XdgIconLoader.qml"
 
-            Text {
-                anchors.centerIn: parent
-                text: model.name.charAt(0).toUpperCase()
-                color: "#475569"
-                font.family: "Jura"
-                font.pixelSize: 16
-                font.weight: Font.Light
+                onLoaded: item.iconName = model.iconName
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                visible: iconLoader.status !== Loader.Ready
+                radius: width / 2
+                color: "#e2e8f0"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: model.name.charAt(0).toUpperCase()
+                    color: "#475569"
+                    font.family: "Jura"
+                    font.pixelSize: 18
+                    font.weight: Font.Light
+                }
             }
         }
     }
 
     Text {
-        id: shortcutHint
-
-        anchors.right: parent.right
-        anchors.rightMargin: 16
-        anchors.verticalCenter: parent.verticalCenter
-        width: 12
-        text: model.shortcutHint
-        color: "#94a3b8"
-        font.family: "Jura"
-        font.pixelSize: 13
-        font.weight: Font.Light
-        horizontalAlignment: Text.AlignRight
-    }
-
-    Text {
         id: nameLabel
 
-        anchors.left: iconSlot.right
-        anchors.leftMargin: 12
-        anchors.right: shortcutHint.left
-        anchors.rightMargin: 12
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.top: tile.bottom
+        anchors.topMargin: 6
+        anchors.left: parent.left
+        anchors.right: parent.right
         text: model.name
-        color: delegateRoot.selected ? "#0c4a6e" : "#1e293b"
+        color: delegateRoot.selected ? root.textStrong : root.textSoft
         font.family: "Jura"
-        font.pixelSize: 15
+        font.pixelSize: 11
         font.weight: Font.Light
         elide: Text.ElideRight
+        horizontalAlignment: Text.AlignHCenter
     }
 
     MouseArea {

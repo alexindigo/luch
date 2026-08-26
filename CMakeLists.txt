@@ -42,3 +42,12 @@ target_link_libraries(luch PRIVATE
 )
 
 install(TARGETS luch RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(FILES luch.desktop DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
+install(FILES assets/luch.svg
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps")
+foreach(luch_icon_size 256 128 64 48 32)
+    install(FILES "assets/luch-${luch_icon_size}.png"
+            DESTINATION
+                "${CMAKE_INSTALL_DATADIR}/icons/hicolor/${luch_icon_size}x${luch_icon_size}/apps"
+            RENAME luch.png)
+endforeach()

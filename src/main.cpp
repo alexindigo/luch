@@ -1,18 +1,66 @@
 #include <LayerShellQt/Shell>
 #include <QCommandLineParser>
 #include <QGuiApplication>
+#include <QProcess>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
+#include <QStandardPaths>
 #include <QUrl>
+
+#include <cstring>
 
 #include "browserregistry.h"
 #include "config.h"
 #include "launcher.h"
 #include "pickerwindow.h"
 
+namespace {
+
+int setDefaultHandler()
+{
+    const QString xdgMime =
+        QStandardPaths::findExecutable(QStringLiteral("xdg-mime"));
+    if (xdgMime.isEmpty()) {
+        qCritical().noquote() << QStringLiteral("luch: xdg-mime not found");
+        return 1;
+    }
+
+    const QStringList schemes = {QStringLiteral("x-scheme-handler/http"),
+                                 QStringLiteral("x-scheme-handler/https")};
+    QStringList args = {QStringLiteral("default"),
+                        QStringLiteral("luch.desktop")};
+    args += schemes;
+    const int rc = QProcess::execute(xdgMime, args);
+    if (rc != 0) {
+        qCritical().noquote()
+            << QStringLiteral("luch: xdg-mime default failed (%1)").arg(rc);
+        return rc;
+    }
+
+    for (const QString &scheme : schemes) {
+        QProcess query;
+        query.start(xdgMime, {QStringLiteral("query"),
+                              QStringLiteral("default"), scheme});
+        query.waitForFinished();
+        printf("  %s -> %s", qPrintable(scheme),
+               qPrintable(QString::fromUtf8(query.readAllStandardOutput()
+                                                .trimmed())));
+        printf("\n");
+    }
+    printf("luch is now the default handler for http and https.\n");
+    return 0;
+}
+
+} // namespace
+
 int main(int argc, char *argv[])
 {
+    for (int i = 1; i < argc; ++i) {
+        if (qstrcmp(argv[i], "--set-default") == 0)
+            return setDefaultHandler();
+    }
+
 #if defined(__GNUC__)
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -32,6 +80,11 @@ int main(int argc, char *argv[])
         QStringLiteral("Luch — link router: pick which browser opens a URL."));
     parser.addHelpOption();
     parser.addVersionOption();
+    const QCommandLineOption setDefaultOption(
+        QStringLiteral("set-default"),
+        QStringLiteral("Register luch as the default http/https handler "
+                       "via xdg-mime, then exit."));
+    parser.addOption(setDefaultOption);
     parser.addPositionalArgument(QStringLiteral("url"),
                                  QStringLiteral("URL to route to a browser."));
     parser.process(app);

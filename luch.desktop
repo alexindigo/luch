@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Luch
+Comment=Link router — pick which browser opens a URL
+Exec=luch %u
+Icon=luch
+Terminal=false
+NoDisplay=true
+Categories=Network;
+MimeType=x-scheme-handler/http;x-scheme-handler/https;

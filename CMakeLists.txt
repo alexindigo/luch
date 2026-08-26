@@ -12,6 +12,12 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick)
 find_package(LayerShellQt REQUIRED)
 
 qt_add_executable(luch
+    src/browserregistry.cpp
+    src/browserregistry.h
+    src/config.cpp
+    src/config.h
+    src/launcher.cpp
+    src/launcher.h
     src/main.cpp
     src/pickerwindow.cpp
     src/pickerwindow.h
@@ -21,7 +27,9 @@ qt_add_qml_module(luch
     URI Luch
     VERSION 1.0
     QML_FILES
+        ui/BrowserDelegate.qml
         ui/Main.qml
+        ui/XdgIconLoader.qml
 )
 
 target_include_directories(luch PRIVATE src)

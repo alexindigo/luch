@@ -6,6 +6,9 @@
 #include <QQuickWindow>
 #include <QUrl>
 
+#include "browserregistry.h"
+#include "config.h"
+#include "launcher.h"
 #include "pickerwindow.h"
 
 int main(int argc, char *argv[])
@@ -48,9 +51,17 @@ int main(int argc, char *argv[])
         return 2;
     }
 
+    Luch::Config config;
+    Luch::BrowserRegistry registry(&config);
+    Luch::Launcher launcher;
+
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("incomingUrl"),
                                              url.toString());
+    engine.rootContext()->setContextProperty(QStringLiteral("browserRegistry"),
+                                             &registry);
+    engine.rootContext()->setContextProperty(QStringLiteral("launcher"),
+                                             &launcher);
     engine.load(QUrl(QStringLiteral("qrc:/Luch/ui/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
         qCritical() << "luch: QML root failed to load";
@@ -63,9 +74,22 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    bool done = false;
     Luch::PickerWindow picker(window);
     QObject::connect(&picker, &Luch::PickerWindow::dismissed, &app,
-                     [&app](int exitCode) { app.exit(exitCode); });
+                     [&app, &done](int exitCode) {
+                         if (done)
+                             return;
+                         done = true;
+                         app.exit(exitCode);
+                     });
+    QObject::connect(&launcher, &Luch::Launcher::launched, &app,
+                     [&app, &done] {
+                         if (done)
+                             return;
+                         done = true;
+                         app.exit(0);
+                     });
     window->show();
 
     return app.exec();

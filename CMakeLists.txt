@@ -10,6 +10,14 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick)
 find_package(LayerShellQt REQUIRED)
+# XdgIcon QML module — resolves real browser icons in the picker.
+find_package(xdgiconqml REQUIRED)
+# xdgiconqml exports xdgiconqml::xdgiconqml; Qt's QML import machinery looks
+# for the module's qmldir linktarget by name. Alias it so the `import XdgIcon`
+# in ui/XdgIconLoader.qml resolves without a "link target does not exist" warning.
+if(TARGET xdgiconqml::xdgiconqml AND NOT TARGET xdgiconqmlplugin)
+    add_library(xdgiconqmlplugin ALIAS xdgiconqml::xdgiconqml)
+endif()
 
 qt_add_executable(luch
     src/browserregistry.cpp

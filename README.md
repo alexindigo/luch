@@ -21,7 +21,8 @@ Wayland-only (niri, mangowc, KDE, any compositor with
 ## Build
 
 Dependencies: Qt6 (Core, Gui, Quick/Declarative), `layer-shell-qt`
-(Arch: `extra/layer-shell-qt`), and a C++20 compiler + CMake ≥ 3.21.
+(Arch: `extra/layer-shell-qt`), `xdgiconqml` (the `XdgIcon` QML module
+that resolves browser icons), and a C++20 compiler + CMake ≥ 3.21.
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -29,9 +30,9 @@ cmake --build build
 sudo cmake --install build
 ```
 
-Optional runtime nicety: `xdgiconqml` for real browser icons in the
-list (falls back to letter monograms without it), `wl-clipboard` so
-Ctrl+C survives the popup exiting.
+`wl-clipboard` is an optional runtime nicety so Ctrl+C survives the
+popup exiting. If the `XdgIcon` module is somehow missing at runtime the
+picker still works, falling back to letter monograms.
 
 ## Wiring it up
 

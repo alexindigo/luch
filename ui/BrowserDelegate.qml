@@ -44,7 +44,10 @@ Item {
                 anchors.fill: parent
                 source: "XdgIconLoader.qml"
 
-                onLoaded: item.iconName = model.iconName
+                onLoaded: {
+                    item.iconName = model.iconName
+                    item.fallbackText = model.name.charAt(0).toUpperCase()
+                }
             }
 
             Rectangle {

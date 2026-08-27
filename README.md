@@ -9,6 +9,8 @@ popup is gone.
 Named after the Soviet Luch Satellite Data Relay Network: it intercepts
 a signal (a link click) and relays it to the right destination.
 
+![Luch picker](assets/screenshot.png)
+
 ## Status
 
 v1 is the picker popup. There is no rules engine yet — the config
@@ -58,8 +60,8 @@ luch --set-default
 luch --version
 ```
 
-Keyboard: `1`–`9` launch directly, `↑`/`↓` + `Enter` to choose,
-`Esc` dismisses, `Ctrl+C` copies the URL. Click works too.
+Keyboard: `1`–`9` launch directly, arrow keys + `Enter` or `Space` to
+choose, `Esc` dismisses, `Ctrl+C` copies the URL. Click works too.
 
 Exit codes: `0` a browser was launched, `1` dismissed without
 launching, `2` the URL was not routable http(s).

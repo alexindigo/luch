@@ -34,7 +34,7 @@ Window {
         if (exec === "")
             return
         launchError = ""
-        launcher.launch(exec, incomingUrl)
+        launcher.launch(exec)
     }
 
     Connections {

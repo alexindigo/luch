@@ -22,7 +22,10 @@ public:
     };
     Q_ENUM(Role)
 
-    explicit BrowserRegistry(Config *config, QObject *parent = nullptr);
+    explicit BrowserRegistry(Config *config,
+                             const QStringList &mimeMatches =
+                                 {QStringLiteral("x-scheme-handler/http")},
+                             QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role) const override;
@@ -41,9 +44,11 @@ private:
     void rebuild();
     void scanDesktopEntries(QSet<QString> &seenIds);
     static bool parseDesktopEntry(const QString &path, Item &item,
-                                  bool &handlesHttp);
+                                  const QStringList &mimeMatches,
+                                  bool &handlesTarget);
 
     Config *m_config = nullptr;
+    QStringList m_mimeMatches;
     QVector<Item> m_items;
 };
 

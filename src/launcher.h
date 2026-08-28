@@ -2,6 +2,8 @@
 
 #include <QObject>
 
+#include "target.h"
+
 namespace Luch {
 
 class Launcher : public QObject
@@ -11,12 +13,17 @@ class Launcher : public QObject
 public:
     explicit Launcher(QObject *parent = nullptr);
 
-    Q_INVOKABLE bool launch(const QString &execLine, const QString &url);
+    void setTarget(const Target &target);
+
+    Q_INVOKABLE bool launch(const QString &execLine);
     Q_INVOKABLE void copyToClipboard(const QString &text);
 
 Q_SIGNALS:
     void launched();
     void launchFailed(const QString &message);
+
+private:
+    Target m_target;
 };
 
 } // namespace Luch

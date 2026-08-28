@@ -9,7 +9,15 @@ namespace Luch {
 
 namespace {
 
-QString expandFieldCodes(const QString &token, const QString &url, bool &empty)
+QString targetForm(const Target &target)
+{
+    return target.kind == Target::HtmlFile && !target.urlForm.isEmpty()
+               ? target.urlForm
+               : target.raw;
+}
+
+QString expandFieldCodes(const QString &token, const Target &target,
+                         bool &empty)
 {
     QString out;
     out.reserve(token.size());
@@ -23,13 +31,16 @@ QString expandFieldCodes(const QString &token, const QString &url, bool &empty)
         switch (code.unicode()) {
         case 'u':
         case 'U':
-            out += url;
+            out += targetForm(target);
+            break;
+        case 'f':
+        case 'F':
+            if (target.kind == Target::HtmlFile)
+                out += target.path;
             break;
         case '%':
             out += QLatin1Char('%');
             break;
-        case 'f':
-        case 'F':
         case 'd':
         case 'D':
         case 'n':
@@ -57,7 +68,12 @@ Launcher::Launcher(QObject *parent)
 {
 }
 
-bool Launcher::launch(const QString &execLine, const QString &url)
+void Launcher::setTarget(const Target &target)
+{
+    m_target = target;
+}
+
+bool Launcher::launch(const QString &execLine)
 {
     const QStringList tokens = QProcess::splitCommand(execLine);
     if (tokens.isEmpty()) {
@@ -69,7 +85,7 @@ bool Launcher::launch(const QString &execLine, const QString &url)
     expanded.reserve(tokens.size());
     for (const QString &token : tokens) {
         bool empty = false;
-        const QString arg = expandFieldCodes(token, url, empty);
+        const QString arg = expandFieldCodes(token, m_target, empty);
         if (!empty)
             expanded.append(arg);
     }

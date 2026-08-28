@@ -7,9 +7,12 @@
 
 namespace Luch {
 
-BrowserRegistry::BrowserRegistry(Config *config, QObject *parent)
+BrowserRegistry::BrowserRegistry(Config *config,
+                                 const QStringList &mimeMatches,
+                                 QObject *parent)
     : QAbstractListModel(parent)
     , m_config(config)
+    , m_mimeMatches(mimeMatches)
 {
     rebuild();
 }
@@ -106,11 +109,11 @@ void BrowserRegistry::scanDesktopEntries(QSet<QString> &seenIds)
                 continue;
 
             Item item;
-            bool handlesHttp = false;
+            bool handlesTarget = false;
             if (!parseDesktopEntry(dir.absoluteFilePath(file), item,
-                                   handlesHttp))
+                                   m_mimeMatches, handlesTarget))
                 continue;
-            if (!handlesHttp)
+            if (!handlesTarget)
                 continue;
             if (item.name.isEmpty() || item.exec.isEmpty())
                 continue;
@@ -125,7 +128,8 @@ void BrowserRegistry::scanDesktopEntries(QSet<QString> &seenIds)
 }
 
 bool BrowserRegistry::parseDesktopEntry(const QString &path, Item &item,
-                                        bool &handlesHttp)
+                                        const QStringList &mimeMatches,
+                                        bool &handlesTarget)
 {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
@@ -180,8 +184,15 @@ bool BrowserRegistry::parseDesktopEntry(const QString &path, Item &item,
         && QStandardPaths::findExecutable(tryExec).isEmpty())
         return false;
 
-    handlesHttp = mimeTypes.split(QLatin1Char(';'), Qt::SkipEmptyParts)
-                      .contains(QLatin1String("x-scheme-handler/http"));
+    const QStringList mimeTypesFound =
+        mimeTypes.split(QLatin1Char(';'), Qt::SkipEmptyParts);
+    handlesTarget = false;
+    for (const QString &match : mimeMatches) {
+        if (mimeTypesFound.contains(match)) {
+            handlesTarget = true;
+            break;
+        }
+    }
     return true;
 }
 

@@ -14,6 +14,7 @@
 #include "config.h"
 #include "launcher.h"
 #include "pickerwindow.h"
+#include "target.h"
 
 namespace {
 
@@ -77,7 +78,8 @@ int main(int argc, char *argv[])
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
-        QStringLiteral("Luch — link router: pick which browser opens a URL."));
+        QStringLiteral("Luch — link router: pick which browser opens a URL "
+                       "or local HTML file."));
     parser.addHelpOption();
     parser.addVersionOption();
     const QCommandLineOption setDefaultOption(
@@ -85,8 +87,9 @@ int main(int argc, char *argv[])
         QStringLiteral("Register luch as the default http/https handler "
                        "via xdg-mime, then exit."));
     parser.addOption(setDefaultOption);
-    parser.addPositionalArgument(QStringLiteral("url"),
-                                 QStringLiteral("URL to route to a browser."));
+    parser.addPositionalArgument(
+        QStringLiteral("target"),
+        QStringLiteral("URL or local HTML file to route to a browser."));
     parser.process(app);
 
     const QStringList args = parser.positionalArguments();
@@ -94,23 +97,35 @@ int main(int argc, char *argv[])
         parser.showHelp(2);
     }
 
-    const QUrl url(args.first());
-    if (!url.isValid()
-        || (url.scheme() != QLatin1String("http")
-            && url.scheme() != QLatin1String("https"))) {
-        qCritical().noquote()
-            << QStringLiteral("luch: not a routable http(s) URL:")
-            << args.first();
+    Luch::Target target;
+    QString parseError;
+    if (!Luch::Target::parse(args.first(), target, &parseError)) {
+        qCritical().noquote() << parseError;
         return 2;
     }
 
+    const QStringList mimeMatches =
+        target.kind == Luch::Target::HtmlFile
+            ? QStringList{QStringLiteral("text/html"),
+                          QStringLiteral("application/xhtml+xml")}
+            : QStringList{QStringLiteral("x-scheme-handler/http")};
+
     Luch::Config config;
-    Luch::BrowserRegistry registry(&config);
+    Luch::BrowserRegistry registry(&config, mimeMatches);
     Luch::Launcher launcher;
+    launcher.setTarget(target);
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("incomingUrl"),
-                                             url.toString());
+                                             target.raw);
+    engine.rootContext()->setContextProperty(QStringLiteral("targetScheme"),
+                                             target.scheme);
+    engine.rootContext()->setContextProperty(QStringLiteral("targetHostOrDir"),
+                                             target.hostOrDir);
+    engine.rootContext()->setContextProperty(QStringLiteral("targetMiddle"),
+                                             target.middle);
+    engine.rootContext()->setContextProperty(QStringLiteral("targetTail"),
+                                             target.tail);
     engine.rootContext()->setContextProperty(QStringLiteral("browserRegistry"),
                                              &registry);
     engine.rootContext()->setContextProperty(QStringLiteral("launcher"),

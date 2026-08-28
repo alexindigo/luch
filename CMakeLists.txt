@@ -29,6 +29,8 @@ qt_add_executable(luch
     src/main.cpp
     src/pickerwindow.cpp
     src/pickerwindow.h
+    src/target.cpp
+    src/target.h
 )
 
 qt_add_qml_module(luch

@@ -55,16 +55,23 @@ Luch is never registered at install time — only when you ask.
 ## Usage
 
 ```sh
-luch <url>        # show the picker for a URL
+luch <url|html-file>   # show the picker for a URL or local HTML file
 luch --set-default
 luch --version
 ```
 
-Keyboard: `1`–`9` launch directly, arrow keys + `Enter` or `Space` to
-choose, `Esc` dismisses, `Ctrl+C` copies the URL. Click works too.
+Targets are http(s) URLs and local HTML files (`text/html`,
+`application/xhtml+xml`) — pass a path or a `file://` URI. Anything
+else is refused with exit 2 and a message naming the detected type.
 
-Exit codes: `0` a browser was launched, `1` dismissed without
-launching, `2` the URL was not routable http(s).
+Keyboard: `1`–`9` launch directly, arrow keys + `Enter` or `Space` to
+choose, `Esc` dismisses, `Ctrl+C` copies the target. Click works too —
+including the copy glyph next to the target line at the bottom, which
+always shows what is about to be opened (host and filename are never
+truncated; long paths collapse to ` … ` and wrap).
+
+Exit codes: `0` a browser was launched or the target was copied, `1`
+dismissed without launching, `2` the target was not routable.
 
 ## Config
 

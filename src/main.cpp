@@ -158,6 +158,13 @@ int main(int argc, char *argv[])
                          done = true;
                          app.exit(0);
                      });
+    QObject::connect(&launcher, &Luch::Launcher::copied, &app,
+                     [&app, &done] {
+                         if (done)
+                             return;
+                         done = true;
+                         app.exit(0);
+                     });
     window->show();
 
     return app.exec();

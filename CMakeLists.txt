@@ -39,6 +39,7 @@ qt_add_qml_module(luch
     QML_FILES
         ui/BrowserDelegate.qml
         ui/Main.qml
+        ui/TargetFooter.qml
         ui/XdgIconLoader.qml
 )
 

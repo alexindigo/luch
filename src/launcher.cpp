@@ -118,6 +118,7 @@ bool Launcher::launch(const QString &execLine)
 void Launcher::copyToClipboard(const QString &text)
 {
     QGuiApplication::clipboard()->setText(text);
+    Q_EMIT copied();
     // Wayland selections die with their owner; wl-copy daemonizes and
     // keeps the selection alive after we exit. Best effort only.
     const QString wlCopy =

@@ -21,6 +21,7 @@ public:
 Q_SIGNALS:
     void launched();
     void launchFailed(const QString &message);
+    void copied();
 
 private:
     Target m_target;

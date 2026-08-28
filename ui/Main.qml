@@ -9,14 +9,20 @@ Window {
     readonly property int cellHeight: 104
     readonly property int rowSpacing: 6
     readonly property int maxVisible: 9
+    readonly property int footerSpacing: 10
+    readonly property real widthCapFactor: 0.8
 
     readonly property int visibleCells: Math.max(
         1, Math.min(browserView.count, maxVisible))
+    readonly property int chrome: surfaceMargin * 2 + contentPad * 2
+    readonly property int stripWidth: visibleCells * cellWidth
+        + Math.max(0, visibleCells - 1) * rowSpacing
+    readonly property real widthCap: widthCapFactor * Screen.width
 
-    width: surfaceMargin * 2 + contentPad * 2
-           + visibleCells * cellWidth
-           + Math.max(0, visibleCells - 1) * rowSpacing
-    height: surfaceMargin * 2 + contentPad * 2 + cellHeight
+    width: chrome + Math.ceil(Math.max(stripWidth,
+                             Math.min(footerBar.naturalWidth + 2, widthCap)))
+    height: chrome + cellHeight
+            + (footerBar.height > 0 ? footerSpacing + footerBar.height : 0)
             + (launchError !== "" ? errorLabel.height + 10 : 0)
     visible: false
     color: "transparent"
@@ -66,6 +72,7 @@ Window {
                 id: browserView
 
                 width: Math.min(contentWidth, parent.width)
+                x: (parent.width - width) / 2
                 height: root.cellHeight
                 orientation: ListView.Horizontal
                 interactive: contentWidth > width
@@ -107,6 +114,24 @@ Window {
                 elide: Text.ElideRight
                 horizontalAlignment: Text.AlignHCenter
             }
+
+            TargetFooter {
+                id: footerBar
+
+                width: parent.width
+                accent: root.accent
+                textStrong: root.textStrong
+                textSoft: root.textSoft
+                textFaint: root.textFaint
+                textDimmest: "#64748b"
+                scheme: targetScheme
+                hostOrDir: targetHostOrDir
+                middle: targetMiddle
+                tail: targetTail
+                widthCapped: footerBar.naturalWidth > root.widthCap
+
+                onCopyRequested: launcher.copyToClipboard(incomingUrl)
+            }
         }
     }
 
@@ -120,7 +145,6 @@ Window {
             if (event.modifiers & Qt.ControlModifier
                     && event.key === Qt.Key_C) {
                 launcher.copyToClipboard(incomingUrl)
-                root.close()
                 event.accepted = true
                 return
             }

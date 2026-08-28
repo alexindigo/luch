@@ -31,7 +31,9 @@ bool makeUrlTarget(const QString &raw, const QUrl &url, Target &target)
     const QString path = url.path();
     const int lastSlash = path.lastIndexOf(QLatin1Char('/'));
     target.middle = lastSlash > 0 ? path.left(lastSlash) : QString();
-    target.tail = path.mid(lastSlash + 1);
+    target.tail = path.isEmpty()
+                      ? QString()
+                      : QLatin1Char('/') + path.mid(lastSlash + 1);
     if (!url.query().isEmpty())
         target.tail += QLatin1Char('?') + url.query();
     if (url.hasFragment())
@@ -63,10 +65,10 @@ bool makeFileTarget(const QString &raw, const QString &path, Target &target,
     target.scheme = QStringLiteral("file://");
 
     const int lastSlash = target.path.lastIndexOf(QLatin1Char('/'));
-    target.tail = target.path.mid(lastSlash + 1);
+    target.tail = QLatin1Char('/') + target.path.mid(lastSlash + 1);
     const QString dir = target.path.left(lastSlash);
-    if (dir.isEmpty()) {
-        target.hostOrDir = QStringLiteral("/");
+    if (dir.isEmpty() || dir == QLatin1String("/")) {
+        target.hostOrDir = QString();
         target.middle = QString();
     } else {
         const int secondSlash = dir.indexOf(QLatin1Char('/'), 1);

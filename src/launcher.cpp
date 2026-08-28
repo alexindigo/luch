@@ -80,7 +80,16 @@ bool Launcher::launch(const QString &execLine, const QString &url)
     }
 
     const QString program = expanded.takeFirst();
-    if (!QProcess::startDetached(program, expanded)) {
+
+    // Detach the child's stdio from ours: launched browsers otherwise
+    // inherit the terminal (polluting the prompt and holding the tty).
+    QProcess proc;
+    proc.setProgram(program);
+    proc.setArguments(expanded);
+    proc.setStandardInputFile(QProcess::nullDevice());
+    proc.setStandardOutputFile(QProcess::nullDevice());
+    proc.setStandardErrorFile(QProcess::nullDevice());
+    if (!proc.startDetached()) {
         Q_EMIT launchFailed(
             QStringLiteral("Failed to start %1").arg(program));
         return false;
@@ -97,8 +106,15 @@ void Launcher::copyToClipboard(const QString &text)
     // keeps the selection alive after we exit. Best effort only.
     const QString wlCopy =
         QStandardPaths::findExecutable(QStringLiteral("wl-copy"));
-    if (!wlCopy.isEmpty())
-        QProcess::startDetached(wlCopy, {text});
+    if (!wlCopy.isEmpty()) {
+        QProcess proc;
+        proc.setProgram(wlCopy);
+        proc.setArguments({text});
+        proc.setStandardInputFile(QProcess::nullDevice());
+        proc.setStandardOutputFile(QProcess::nullDevice());
+        proc.setStandardErrorFile(QProcess::nullDevice());
+        proc.startDetached();
+    }
 }
 
 } // namespace Luch

@@ -63,6 +63,14 @@ int main(int argc, char *argv[])
             return setDefaultHandler();
     }
 
+// Capture the pre-LayerShellQt state of QT_WAYLAND_SHELL_INTEGRATION:
+// useLayerShell() below exports it into our environment, and launched
+// apps must see the original value (or none), not the layer-shell one.
+const bool hadShellIntegration =
+    qEnvironmentVariableIsSet("QT_WAYLAND_SHELL_INTEGRATION");
+const QString priorShellIntegration =
+    qEnvironmentVariable("QT_WAYLAND_SHELL_INTEGRATION");
+
 #if defined(__GNUC__)
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -115,6 +123,8 @@ int main(int argc, char *argv[])
     Luch::BrowserRegistry registry(&config, mimeMatches);
     Luch::Launcher launcher;
     launcher.setTarget(target);
+    launcher.setShellIntegrationRestore(hadShellIntegration,
+                                        priorShellIntegration);
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("incomingUrl"),

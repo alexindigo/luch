@@ -82,6 +82,28 @@ void Launcher::setTarget(const Target &target)
     m_target = target;
 }
 
+void Launcher::setShellIntegrationRestore(bool wasSet, const QString &value)
+{
+    m_shellIntegrationWasSet = wasSet;
+    m_shellIntegrationValue = value;
+}
+
+QProcessEnvironment Launcher::childEnvironment(const QString &token) const
+{
+    // LayerShellQt's useLayerShell() exports QT_WAYLAND_SHELL_INTEGRATION
+    // into our own environment; launched Qt apps would inherit it and die.
+    // Give children the pre-useLayerShell state, not blanket removal.
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    if (m_shellIntegrationWasSet)
+        env.insert(QStringLiteral("QT_WAYLAND_SHELL_INTEGRATION"),
+                   m_shellIntegrationValue);
+    else
+        env.remove(QStringLiteral("QT_WAYLAND_SHELL_INTEGRATION"));
+    if (!token.isEmpty())
+        env.insert(QStringLiteral("XDG_ACTIVATION_TOKEN"), token);
+    return env;
+}
+
 void Launcher::setActivationSource(XdgActivationTokenRequester *requester,
                                    QWindow *window)
 {
@@ -154,10 +176,7 @@ void Launcher::doLaunch(const QString &program, const QStringList &args,
     proc.setStandardInputFile(QProcess::nullDevice());
     proc.setStandardOutputFile(QProcess::nullDevice());
     proc.setStandardErrorFile(QProcess::nullDevice());
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    if (!token.isEmpty())
-        env.insert(QStringLiteral("XDG_ACTIVATION_TOKEN"), token);
-    proc.setProcessEnvironment(env);
+    proc.setProcessEnvironment(childEnvironment(token));
     if (!proc.startDetached()) {
         Q_EMIT launchFailed(
             QStringLiteral("Failed to start %1").arg(program));
@@ -182,6 +201,7 @@ void Launcher::copyToClipboard(const QString &text)
         proc.setStandardInputFile(QProcess::nullDevice());
         proc.setStandardOutputFile(QProcess::nullDevice());
         proc.setStandardErrorFile(QProcess::nullDevice());
+        proc.setProcessEnvironment(childEnvironment(QString()));
         proc.startDetached();
     }
 }

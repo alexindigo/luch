@@ -20,6 +20,7 @@ public:
     explicit Launcher(QObject *parent = nullptr);
 
     void setTarget(const Target &target);
+    void setShellIntegrationRestore(bool wasSet, const QString &value);
     void setActivationSource(XdgActivationTokenRequester *requester,
                              QWindow *window);
 
@@ -35,8 +36,11 @@ private:
     void proceedPending(const QString &token);
     void doLaunch(const QString &program, const QStringList &args,
                   const QString &token);
+    QProcessEnvironment childEnvironment(const QString &token) const;
 
     Target m_target;
+    bool m_shellIntegrationWasSet = false;
+    QString m_shellIntegrationValue;
     XdgActivationTokenRequester *m_activationRequester = nullptr;
     QWindow *m_activationWindow = nullptr;
     QTimer *m_activationTimer = nullptr;

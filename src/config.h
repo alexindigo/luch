@@ -23,6 +23,7 @@ public:
     explicit Config(QObject *parent = nullptr);
 
     const QVector<BrowserEntry> &browsers() const;
+    bool focusFollowOnOpen() const;
     static QString configPath();
 
 private:
@@ -30,6 +31,7 @@ private:
     void writeDefaults() const;
 
     QVector<BrowserEntry> m_browsers;
+    bool m_focusFollowOnOpen = true;
 };
 
 } // namespace Luch

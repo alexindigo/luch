@@ -4,6 +4,10 @@
 #include <QClipboard>
 #include <QProcess>
 #include <QStandardPaths>
+#include <QTimer>
+#include <QWindow>
+
+#include "xdgactivation.h"
 
 namespace Luch {
 
@@ -65,12 +69,30 @@ QString expandFieldCodes(const QString &token, const Target &target,
 
 Launcher::Launcher(QObject *parent)
     : QObject(parent)
+    , m_activationTimer(new QTimer(this))
 {
+    m_activationTimer->setSingleShot(true);
+    m_activationTimer->setInterval(200);
+    connect(m_activationTimer, &QTimer::timeout, this,
+            [this] { proceedPending(QString()); });
 }
 
 void Launcher::setTarget(const Target &target)
 {
     m_target = target;
+}
+
+void Launcher::setActivationSource(XdgActivationTokenRequester *requester,
+                                   QWindow *window)
+{
+    m_activationRequester = requester;
+    m_activationWindow = window;
+    if (!requester)
+        return;
+    connect(requester, &XdgActivationTokenRequester::tokenReady, this,
+            [this](const QString &token) { proceedPending(token); });
+    connect(requester, &XdgActivationTokenRequester::failed, this,
+            [this] { proceedPending(QString()); });
 }
 
 bool Launcher::launch(const QString &execLine)
@@ -97,22 +119,52 @@ bool Launcher::launch(const QString &execLine)
 
     const QString program = expanded.takeFirst();
 
+    if (!m_activationRequester || !m_activationWindow) {
+        doLaunch(program, expanded, QString());
+        return true;
+    }
+
+    m_pendingProgram = program;
+    m_pendingArgs = expanded;
+    m_proceeded = false;
+    m_pendingActivation = true;
+    m_activationTimer->start();
+    m_activationRequester->requestToken(m_activationWindow);
+    return true;
+}
+
+void Launcher::proceedPending(const QString &token)
+{
+    if (!m_pendingActivation || m_proceeded)
+        return;
+    m_proceeded = true;
+    m_pendingActivation = false;
+    m_activationTimer->stop();
+    doLaunch(m_pendingProgram, m_pendingArgs, token);
+}
+
+void Launcher::doLaunch(const QString &program, const QStringList &args,
+                        const QString &token)
+{
     // Detach the child's stdio from ours: launched browsers otherwise
     // inherit the terminal (polluting the prompt and holding the tty).
     QProcess proc;
     proc.setProgram(program);
-    proc.setArguments(expanded);
+    proc.setArguments(args);
     proc.setStandardInputFile(QProcess::nullDevice());
     proc.setStandardOutputFile(QProcess::nullDevice());
     proc.setStandardErrorFile(QProcess::nullDevice());
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    if (!token.isEmpty())
+        env.insert(QStringLiteral("XDG_ACTIVATION_TOKEN"), token);
+    proc.setProcessEnvironment(env);
     if (!proc.startDetached()) {
         Q_EMIT launchFailed(
             QStringLiteral("Failed to start %1").arg(program));
-        return false;
+        return;
     }
 
     Q_EMIT launched();
-    return true;
 }
 
 void Launcher::copyToClipboard(const QString &text)

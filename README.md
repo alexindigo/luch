@@ -22,9 +22,10 @@ Wayland-only (niri, mangowc, KDE, any compositor with
 
 ## Build
 
-Dependencies: Qt6 (Core, Gui, Quick/Declarative), `layer-shell-qt`
-(Arch: `extra/layer-shell-qt`), `xdgiconqml` (the `XdgIcon` QML module
-that resolves browser icons), and a C++20 compiler + CMake ≥ 3.21.
+Dependencies: Qt6 (Core, Gui, Quick/Declarative, WaylandClient),
+`layer-shell-qt` (Arch: `extra/layer-shell-qt`), `wayland-protocols`,
+`xdgiconqml` (the `XdgIcon` QML module that resolves browser icons),
+`wayland-scanner`, and a C++20 compiler + CMake ≥ 3.21.
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -92,18 +93,24 @@ defaults on first run:
       "hidden": false
     }
   ],
-  "rules": []
+  "rules": [],
+  "focus": { "followOnOpen": true }
 }
 ```
 
 - The picker lists every installed `.desktop` entry that handles
-  `x-scheme-handler/http` (minus `NoDisplay`/`Hidden` ones).
+  `x-scheme-handler/http` (minus `NoDisplay`/`Hidden` ones) — or, for
+  HTML file targets, entries declaring `text/html`.
 - `browsers[]` entries with `"source": "manual"` are added to the list
   (browser profiles, remote browsers, anything with an Exec line —
-  `%u` receives the URL).
+  `%u` receives the URL or the `file://` form, `%f` the file path).
 - An entry with `"hidden": true` removes a scanned system browser from
   the list.
 - `rules[]` is parsed but ignored in v1.
+- `focus.followOnOpen` (default `true`): after you pick, Luch mints an
+  `xdg-activation-v1` token (compositor-agnostic Wayland focus request)
+  and attaches it to the launched browser so the receiving window takes
+  focus. Set it to `false` to never mint or attach the token.
 
 ## License
 

@@ -21,6 +21,11 @@ const QVector<BrowserEntry> &Config::browsers() const
     return m_browsers;
 }
 
+bool Config::focusFollowOnOpen() const
+{
+    return m_focusFollowOnOpen;
+}
+
 QString Config::configPath()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
@@ -48,6 +53,10 @@ void Config::load()
     }
 
     const QJsonObject root = doc.object();
+    const QJsonObject focus = root.value(QStringLiteral("focus")).toObject();
+    m_focusFollowOnOpen =
+        focus.value(QStringLiteral("followOnOpen")).toBool(true);
+
     for (const QJsonValue &value : root.value(QStringLiteral("browsers")).toArray()) {
         const QJsonObject obj = value.toObject();
         BrowserEntry entry;
@@ -82,6 +91,9 @@ void Config::writeDefaults() const
     };
     root[QStringLiteral("browsers")] = QJsonArray();
     root[QStringLiteral("rules")] = QJsonArray();
+    root[QStringLiteral("focus")] = QJsonObject{
+        {QStringLiteral("followOnOpen"), true},
+    };
 
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {

@@ -15,6 +15,7 @@
 #include "launcher.h"
 #include "pickerwindow.h"
 #include "target.h"
+#include "xdgactivation.h"
 
 namespace {
 
@@ -141,6 +142,10 @@ int main(int argc, char *argv[])
         qCritical() << "luch: QML root is not a Window";
         return 1;
     }
+
+    XdgActivationTokenRequester activationRequester;
+    if (config.focusFollowOnOpen())
+        launcher.setActivationSource(&activationRequester, window);
 
     bool done = false;
     Luch::PickerWindow picker(window);

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(Luch VERSION 0.1.0 LANGUAGES CXX)
+project(Luch VERSION 0.1.0 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 
@@ -8,8 +8,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick WaylandClient
+                                            WaylandScannerTools)
 find_package(LayerShellQt REQUIRED)
+find_package(WaylandScanner REQUIRED)
+find_path(WAYLAND_PROTOCOLS_PATH
+          staging/xdg-activation/xdg-activation-v1.xml
+          PATHS /usr/share/wayland-protocols
+          REQUIRED)
 # XdgIcon QML module — resolves real browser icons in the picker.
 find_package(xdgiconqml REQUIRED)
 # xdgiconqml exports xdgiconqml::xdgiconqml; Qt's QML import machinery looks
@@ -31,6 +37,12 @@ qt_add_executable(luch
     src/pickerwindow.h
     src/target.cpp
     src/target.h
+    src/xdgactivation.cpp
+    src/xdgactivation.h
+)
+
+qt6_generate_wayland_protocol_client_sources(luch
+    FILES ${WAYLAND_PROTOCOLS_PATH}/staging/xdg-activation/xdg-activation-v1.xml
 )
 
 qt_add_qml_module(luch
@@ -43,12 +55,17 @@ qt_add_qml_module(luch
         ui/XdgIconLoader.qml
 )
 
-target_include_directories(luch PRIVATE src)
+target_include_directories(luch PRIVATE src ${CMAKE_CURRENT_BINARY_DIR})
+# qpa native-interface headers (for the wl_surface of the popup) live in
+# the versioned private include tree; Arch's Qt targets don't export it.
+target_include_directories(luch PRIVATE
+    "${Qt6Gui_DIR}/../../../include/qt6/QtGui/${Qt6Gui_VERSION}")
 
 target_link_libraries(luch PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
+    Qt6::WaylandClient
     LayerShellQt::Interface
 )
 

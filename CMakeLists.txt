@@ -28,6 +28,8 @@ endif()
 qt_add_executable(luch
     src/browserregistry.cpp
     src/browserregistry.h
+    src/chromiumsocket.cpp
+    src/chromiumsocket.h
     src/config.cpp
     src/config.h
     src/dbustransport.cpp

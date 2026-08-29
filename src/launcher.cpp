@@ -12,6 +12,7 @@
 
 #include "xdgactivation.h"
 #include "dbustransport.h"
+#include "chromiumsocket.h"
 
 namespace Luch {
 
@@ -219,7 +220,50 @@ bool Launcher::tryTransports(const QString &token)
     } else if (!mozillaApp.isEmpty()) {
         return false;
     }
-    return false;
+
+    static const char *chromiumFamily[] = {"chromium", "chrome", "brave"};
+    bool isChromiumFamily = false;
+    for (const char *app : chromiumFamily) {
+        if (m_pendingDesktopId.contains(QLatin1String(app))) {
+            isChromiumFamily = true;
+            break;
+        }
+    }
+    if (!isChromiumFamily)
+        return false;
+
+    const QStringList dirs = {
+        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+            + QStringLiteral("/chromium"),
+        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+            + QStringLiteral("/google-chrome"),
+        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+            + QStringLiteral("/BraveSoftware/Brave-Browser"),
+    };
+    std::vector<std::string> userDataDirs;
+    for (const QString &dir : dirs)
+        userDataDirs.push_back(dir.toStdString());
+
+    const QStringList argv = [this, &url, &token] {
+        QStringList out = {m_pendingProgram};
+        if (!token.isEmpty())
+            out << QStringLiteral("--xdg-activation-token=%1").arg(token);
+        out << url;
+        return out;
+    }();
+    std::vector<std::string> rawArgv;
+    for (const QString &arg : argv)
+        rawArgv.push_back(arg.toStdString());
+
+    const ChromiumSocket::Result result = ChromiumSocket::notifyRunningInstance(
+        userDataDirs, QDir::currentPath().toStdString(), rawArgv, 1000);
+    if (result != ChromiumSocket::Result::Acked) {
+        qCInfo(luchTransport)
+            << "chromium socket transport: no ACK, falling back to CLI";
+        return false;
+    }
+    qCInfo(luchTransport) << "chromium socket transport routed target";
+    return true;
 }
 
 void Launcher::doLaunch(const QString &program, const QStringList &args,

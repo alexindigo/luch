@@ -104,8 +104,8 @@ defaults on first run:
 - `browsers[]` entries with `"source": "manual"` are added to the list
   (browser profiles, remote browsers, anything with an Exec line —
   `%u` receives the URL or the `file://` form, `%f` the file path).
-- An entry with `"hidden": true` removes a scanned system browser from
-  the list.
+- An entry with `"hidden": true` keeps the entry in config but removes
+  it from the picker — any entry, scanned or manual.
 - `rules[]` is parsed but ignored in v1.
 - `focus.followOnOpen` (default `true`): after you pick, Luch mints an
   `xdg-activation-v1` token (compositor-agnostic Wayland focus request)

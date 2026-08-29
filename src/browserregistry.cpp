@@ -72,6 +72,8 @@ void BrowserRegistry::rebuild()
     for (const BrowserEntry &entry : m_config->browsers()) {
         if (entry.source != QLatin1String("manual"))
             continue;
+        if (entry.hidden)
+            continue;
         if (seenIds.contains(entry.id))
             continue;
         seenIds.insert(entry.id);

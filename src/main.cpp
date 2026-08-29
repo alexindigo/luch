@@ -12,6 +12,7 @@
 
 #include "browserregistry.h"
 #include "config.h"
+#include "dbustransport.h"
 #include "launcher.h"
 #include "pickerwindow.h"
 #include "target.h"
@@ -154,8 +155,10 @@ const QString priorShellIntegration =
     }
 
     XdgActivationTokenRequester activationRequester;
+    Luch::DbusTransport dbusTransport;
     if (config.focusFollowOnOpen())
         launcher.setActivationSource(&activationRequester, window);
+    launcher.setDbusTransport(&dbusTransport);
 
     bool done = false;
     Luch::PickerWindow picker(window);

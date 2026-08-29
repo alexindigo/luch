@@ -61,6 +61,12 @@ QString BrowserRegistry::execAt(int row) const
                                               : QString();
 }
 
+QString BrowserRegistry::idAt(int row) const
+{
+    return (row >= 0 && row < m_items.size()) ? m_items.at(row).id
+                                              : QString();
+}
+
 void BrowserRegistry::rebuild()
 {
     beginResetModel();

@@ -32,6 +32,7 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     Q_INVOKABLE QString execAt(int row) const;
+    Q_INVOKABLE QString idAt(int row) const;
 
 private:
     struct Item {

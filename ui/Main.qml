@@ -40,7 +40,7 @@ Window {
         if (exec === "")
             return
         launchError = ""
-        launcher.launch(exec)
+        launcher.launch(exec, browserRegistry.idAt(index))
     }
 
     Connections {

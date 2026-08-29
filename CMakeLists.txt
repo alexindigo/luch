@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick WaylandClient
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core DBus Gui Quick WaylandClient
                                             WaylandScannerTools)
 find_package(LayerShellQt REQUIRED)
 find_package(WaylandScanner REQUIRED)
@@ -30,6 +30,8 @@ qt_add_executable(luch
     src/browserregistry.h
     src/config.cpp
     src/config.h
+    src/dbustransport.cpp
+    src/dbustransport.h
     src/launcher.cpp
     src/launcher.h
     src/main.cpp
@@ -63,6 +65,7 @@ target_include_directories(luch PRIVATE
 
 target_link_libraries(luch PRIVATE
     Qt6::Core
+    Qt6::DBus
     Qt6::Gui
     Qt6::Quick
     Qt6::WaylandClient

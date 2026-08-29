@@ -1,5 +1,6 @@
 #include "launcher.h"
 
+#include <QDir>
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QProcess>
@@ -7,7 +8,10 @@
 #include <QTimer>
 #include <QWindow>
 
+#include <vector>
+
 #include "xdgactivation.h"
+#include "dbustransport.h"
 
 namespace Luch {
 
@@ -117,12 +121,27 @@ void Launcher::setActivationSource(XdgActivationTokenRequester *requester,
             [this] { proceedPending(QString()); });
 }
 
-bool Launcher::launch(const QString &execLine)
+void Launcher::setDbusTransport(DbusTransport *transport)
+{
+    m_dbusTransport = transport;
+}
+
+bool Launcher::launch(const QString &execLine, const QString &desktopId)
 {
     const QStringList tokens = QProcess::splitCommand(execLine);
     if (tokens.isEmpty()) {
         Q_EMIT launchFailed(QStringLiteral("Empty Exec line"));
         return false;
+    }
+
+    QString pinnedProfile;
+    for (int i = 0; i < tokens.size(); ++i) {
+        const QString token = tokens.at(i);
+        if ((token == QLatin1String("-P") || token == QLatin1String("--profile"))
+            && i + 1 < tokens.size()) {
+            pinnedProfile = tokens.at(i + 1);
+            break;
+        }
     }
 
     QStringList expanded;
@@ -148,6 +167,8 @@ bool Launcher::launch(const QString &execLine)
 
     m_pendingProgram = program;
     m_pendingArgs = expanded;
+    m_pendingDesktopId = desktopId;
+    m_pendingProfile = pinnedProfile;
     m_proceeded = false;
     m_pendingActivation = true;
     m_activationTimer->start();
@@ -162,7 +183,43 @@ void Launcher::proceedPending(const QString &token)
     m_proceeded = true;
     m_pendingActivation = false;
     m_activationTimer->stop();
+
+    if (tryTransports(token)) {
+        Q_EMIT launched();
+        return;
+    }
     doLaunch(m_pendingProgram, m_pendingArgs, token);
+}
+
+bool Launcher::tryTransports(const QString &token)
+{
+    if (m_pendingDesktopId.isEmpty())
+        return false;
+
+    const QString url = targetForm(m_target);
+
+    QString mozillaApp;
+    static const char *mozillaFamily[] = {"firefox", "thunderbird",
+                                          "librewolf"};
+    for (const char *app : mozillaFamily) {
+        if (m_pendingDesktopId.contains(QLatin1String(app))) {
+            mozillaApp = QLatin1String(app);
+            break;
+        }
+    }
+
+    if (m_dbusTransport) {
+        if (m_dbusTransport->openUrl(mozillaApp, m_pendingProfile,
+                                     m_pendingDesktopId, url, token)) {
+            qCInfo(luchTransport) << "dbus transport routed target";
+            return true;
+        }
+        if (!mozillaApp.isEmpty())
+            return false;
+    } else if (!mozillaApp.isEmpty()) {
+        return false;
+    }
+    return false;
 }
 
 void Launcher::doLaunch(const QString &program, const QStringList &args,

@@ -12,6 +12,8 @@ class XdgActivationTokenRequester;
 
 namespace Luch {
 
+class DbusTransport;
+
 class Launcher : public QObject
 {
     Q_OBJECT
@@ -23,8 +25,10 @@ public:
     void setShellIntegrationRestore(bool wasSet, const QString &value);
     void setActivationSource(XdgActivationTokenRequester *requester,
                              QWindow *window);
+    void setDbusTransport(DbusTransport *transport);
 
-    Q_INVOKABLE bool launch(const QString &execLine);
+    Q_INVOKABLE bool launch(const QString &execLine,
+                            const QString &desktopId = QString());
     Q_INVOKABLE void copyToClipboard(const QString &text);
 
 Q_SIGNALS:
@@ -36,6 +40,7 @@ private:
     void proceedPending(const QString &token);
     void doLaunch(const QString &program, const QStringList &args,
                   const QString &token);
+    bool tryTransports(const QString &token);
     QProcessEnvironment childEnvironment(const QString &token) const;
 
     Target m_target;
@@ -43,9 +48,12 @@ private:
     QString m_shellIntegrationValue;
     XdgActivationTokenRequester *m_activationRequester = nullptr;
     QWindow *m_activationWindow = nullptr;
+    DbusTransport *m_dbusTransport = nullptr;
     QTimer *m_activationTimer = nullptr;
     QString m_pendingProgram;
     QStringList m_pendingArgs;
+    QString m_pendingDesktopId;
+    QString m_pendingProfile;
     bool m_pendingActivation = false;
     bool m_proceeded = false;
 };

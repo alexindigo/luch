@@ -112,6 +112,49 @@ defaults on first run:
   and attaches it to the launched browser so the receiving window takes
   focus. Set it to `false` to never mint or attach the token.
 
+## Focus-follow expectations
+
+Focus-follow works when the browser can redeem xdg-activation tokens,
+i.e. **runs native Wayland** and knows how to use the token:
+
+- Firefox and native-Wayland Chromium redeem it on cold start and on
+  remote-open of a running instance (the token rides the remoting
+  payload, in-band).
+- For Chromium-family browsers on X11-default desktop files, focus
+  stays put. Run native Wayland instead — e.g.
+  `--ozone-platform=wayland` on the command line, or persistently in
+  `~/.config/chromium-flags.conf`:
+  ```
+  --ozone-platform=wayland
+  ```
+- The token rides D-Bus `platform_data` on the `Application.Open` /
+  `org.gtk.Application.Activate` transport paths for running instances
+  that speak those (GLib/Gtk apps), and the Mozilla `OpenURL`
+  command-line blob for Firefox.
+
+## Transports
+
+At pick time, for a **running** instance, Luch talks to the browser
+through its own remoting channel instead of spawning a new process —
+in this order, falling back down the chain on any failure:
+
+1. **D-Bus** — Mozilla remote (`OpenURL(ay)` on
+   `org.mozilla.<app>.<profile>`) for Firefox/Thunderbird/LibreWolf;
+   `org.freedesktop.Application.Open` for apps implementing it;
+   `org.gtk.Application.Activate` with the app's startup context for
+   GTK/GApplication browsers (GNOME Web).
+2. **Chromium singleton socket** — `<profile>/SingletonSocket` per
+   Chromium's own client protocol (cookie-verified, retry loop).
+3. **CLI spawn** — always the floor; also the whole story for cold
+   starts.
+
+A second `luch` invocation while the picker is open forwards its target
+into the same popup as a queued item (D-Bus `app.luch` when a session
+bus is available, `QLocalServer` socket otherwise), shown as a carousel
+(counter badge, chevrons, indicator dots); `Shift+←/→` moves between
+queued targets, `Esc` dismisses the current one, `Shift+Esc` drops the
+whole queue.
+
 ## License
 
 GPL-3.0-or-later — see [LICENSE](LICENSE). REUSE-compliant via

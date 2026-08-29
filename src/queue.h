@@ -1,0 +1,49 @@
+#pragma once
+
+#include <QObject>
+
+#include "target.h"
+
+namespace Luch {
+
+class TargetQueue : public QObject
+{
+    Q_OBJECT
+
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(int cursor READ cursor NOTIFY cursorChanged)
+    Q_PROPERTY(QString currentRaw READ currentRaw NOTIFY currentChanged)
+    Q_PROPERTY(QString currentScheme READ currentScheme NOTIFY currentChanged)
+    Q_PROPERTY(QString currentHostOrDir READ currentHostOrDir NOTIFY currentChanged)
+    Q_PROPERTY(QString currentMiddle READ currentMiddle NOTIFY currentChanged)
+    Q_PROPERTY(QString currentTail READ currentTail NOTIFY currentChanged)
+
+public:
+    explicit TargetQueue(QObject *parent = nullptr);
+
+    int count() const;
+    int cursor() const;
+
+    void append(const Target &target);
+    Q_INVOKABLE bool removeCurrent();
+    Q_INVOKABLE void moveCursor(int delta);
+    Q_INVOKABLE void clear();
+
+    const Target *current() const;
+    QString currentRaw() const;
+    QString currentScheme() const;
+    QString currentHostOrDir() const;
+    QString currentMiddle() const;
+    QString currentTail() const;
+
+Q_SIGNALS:
+    void countChanged();
+    void cursorChanged();
+    void currentChanged();
+
+private:
+    QList<Target> m_items;
+    int m_cursor = 0;
+};
+
+} // namespace Luch

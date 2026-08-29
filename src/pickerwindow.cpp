@@ -32,14 +32,6 @@ bool PickerWindow::eventFilter(QObject *watched, QEvent *event)
 {
     if (watched == m_window) {
         switch (event->type()) {
-        case QEvent::KeyPress: {
-            auto *key = static_cast<QKeyEvent *>(event);
-            if (key->key() == Qt::Key_Escape) {
-                m_window->close();
-                return true;
-            }
-            break;
-        }
         case QEvent::WindowActivate:
             m_wasActive = true;
             break;

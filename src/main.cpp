@@ -15,6 +15,8 @@
 #include "dbustransport.h"
 #include "launcher.h"
 #include "pickerwindow.h"
+#include "queue.h"
+#include "singleinstance.h"
 #include "target.h"
 #include "xdgactivation.h"
 
@@ -114,6 +116,13 @@ const QString priorShellIntegration =
         return 2;
     }
 
+    Luch::SingleInstance single;
+    if (!single.tryClaim(target.raw))
+        return 0; // handed off to the running instance
+
+    Luch::TargetQueue queue;
+    queue.append(target);
+
     const QStringList mimeMatches =
         target.kind == Luch::Target::HtmlFile
             ? QStringList{QStringLiteral("text/html"),
@@ -127,17 +136,21 @@ const QString priorShellIntegration =
     launcher.setShellIntegrationRestore(hadShellIntegration,
                                         priorShellIntegration);
 
+    // Forwarded targets enter the queue; refused ones are logged and
+    // dropped — they must not kill the owner.
+    QObject::connect(&single, &Luch::SingleInstance::targetArrived, &app,
+                     [&queue](const QString &raw) {
+                         Luch::Target t;
+                         QString err;
+                         if (Luch::Target::parse(raw, t, &err))
+                             queue.append(t);
+                         else
+                             qWarning().noquote() << err;
+                     });
+
     QQmlApplicationEngine engine;
-    engine.rootContext()->setContextProperty(QStringLiteral("incomingUrl"),
-                                             target.raw);
-    engine.rootContext()->setContextProperty(QStringLiteral("targetScheme"),
-                                             target.scheme);
-    engine.rootContext()->setContextProperty(QStringLiteral("targetHostOrDir"),
-                                             target.hostOrDir);
-    engine.rootContext()->setContextProperty(QStringLiteral("targetMiddle"),
-                                             target.middle);
-    engine.rootContext()->setContextProperty(QStringLiteral("targetTail"),
-                                             target.tail);
+    engine.rootContext()->setContextProperty(QStringLiteral("queue"),
+                                             &queue);
     engine.rootContext()->setContextProperty(QStringLiteral("browserRegistry"),
                                              &registry);
     engine.rootContext()->setContextProperty(QStringLiteral("launcher"),
@@ -160,28 +173,50 @@ const QString priorShellIntegration =
         launcher.setActivationSource(&activationRequester, window);
     launcher.setDbusTransport(&dbusTransport);
 
+    // Queue cursor → per-item target/launcher/registry repopulation.
+    QObject::connect(&queue, &Luch::TargetQueue::currentChanged, &app,
+                     [&queue, &launcher, &registry] {
+                         const Luch::Target *t = queue.current();
+                         if (!t)
+                             return;
+                         launcher.setTarget(*t);
+                         registry.setMimeMatches(
+                             t->kind == Luch::Target::HtmlFile
+                                 ? QStringList{QStringLiteral("text/html"),
+                                               QStringLiteral(
+                                                   "application/xhtml+xml")}
+                                 : QStringList{QStringLiteral(
+                                     "x-scheme-handler/http")});
+                     });
+
     bool done = false;
+    bool handledAny = false;
     Luch::PickerWindow picker(window);
     QObject::connect(&picker, &Luch::PickerWindow::dismissed, &app,
-                     [&app, &done](int exitCode) {
+                     [&app, &done, &handledAny](int) {
                          if (done)
                              return;
                          done = true;
-                         app.exit(exitCode);
+                         app.exit(handledAny ? 0 : 1);
                      });
     QObject::connect(&launcher, &Luch::Launcher::launched, &app,
-                     [&app, &done] {
-                         if (done)
-                             return;
-                         done = true;
-                         app.exit(0);
+                     [&queue, &handledAny] {
+                         handledAny = true;
+                         queue.removeCurrent();
                      });
     QObject::connect(&launcher, &Luch::Launcher::copied, &app,
-                     [&app, &done] {
+                     [&queue, &handledAny] {
+                         handledAny = true;
+                         queue.removeCurrent();
+                     });
+    QObject::connect(&queue, &Luch::TargetQueue::countChanged, &app,
+                     [&app, &done, &handledAny, &queue] {
                          if (done)
                              return;
+                         if (queue.count() > 0)
+                             return;
                          done = true;
-                         app.exit(0);
+                         app.exit(handledAny ? 0 : 1);
                      });
     window->show();
 

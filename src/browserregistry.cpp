@@ -67,6 +67,14 @@ QString BrowserRegistry::idAt(int row) const
                                               : QString();
 }
 
+void BrowserRegistry::setMimeMatches(const QStringList &mimeMatches)
+{
+    if (mimeMatches == m_mimeMatches)
+        return;
+    m_mimeMatches = mimeMatches;
+    rebuild();
+}
+
 void BrowserRegistry::rebuild()
 {
     beginResetModel();

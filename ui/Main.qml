@@ -12,6 +12,13 @@ Window {
     readonly property int footerSpacing: 10
     readonly property real widthCapFactor: 0.8
 
+    // Queue satellites (locked: only when more than one target):
+    readonly property int satelliteOverhang: 14
+    readonly property int badgeOverhang: 14
+    readonly property int dotsRowHeight: 8
+    readonly property int dotsSpacing: 6
+    readonly property bool queued: queue.count > 1
+
     readonly property int visibleCells: Math.max(
         1, Math.min(browserView.count, maxVisible))
     readonly property int chrome: surfaceMargin * 2 + contentPad * 2
@@ -19,11 +26,14 @@ Window {
         + Math.max(0, visibleCells - 1) * rowSpacing
     readonly property real widthCap: widthCapFactor * Screen.width
 
-    width: chrome + Math.ceil(Math.max(stripWidth,
-                             Math.min(footerBar.naturalWidth + 2, widthCap)))
-    height: chrome + cellHeight
+    width: chrome + (queued ? 2 * satelliteOverhang : 0)
+           + Math.ceil(Math.max(stripWidth,
+                                Math.min(footerBar.naturalWidth + 2,
+                                         widthCap)))
+    height: chrome + (queued ? 2 * badgeOverhang : 0) + cellHeight
             + (footerBar.height > 0 ? footerSpacing + footerBar.height : 0)
             + (launchError !== "" ? errorLabel.height + 10 : 0)
+            + (queued ? 10 + dotsRowHeight : 0)
     visible: false
     color: "transparent"
 
@@ -44,6 +54,14 @@ Window {
     }
 
     Connections {
+        target: queue
+
+        function onCurrentChanged() {
+            root.selectedIndex = 0
+        }
+    }
+
+    Connections {
         target: launcher
 
         function onLaunchFailed(message: string) {
@@ -55,7 +73,14 @@ Window {
         id: surface
 
         anchors.fill: parent
-        anchors.margins: root.surfaceMargin
+        anchors.leftMargin: root.surfaceMargin
+            + (root.queued ? root.satelliteOverhang : 0)
+        anchors.rightMargin: root.surfaceMargin
+            + (root.queued ? root.satelliteOverhang : 0)
+        anchors.topMargin: root.surfaceMargin
+            + (root.queued ? root.badgeOverhang : 0)
+        anchors.bottomMargin: root.surfaceMargin
+            + (root.queued ? root.badgeOverhang : 0)
         radius: 16
         color: "#d91e293b"
         border.width: 1
@@ -124,15 +149,46 @@ Window {
                 textSoft: root.textSoft
                 textFaint: root.textFaint
                 textDimmest: "#64748b"
-                scheme: targetScheme
-                hostOrDir: targetHostOrDir
-                middle: targetMiddle
-                tail: targetTail
+                scheme: queue.currentScheme
+                hostOrDir: queue.currentHostOrDir
+                middle: queue.currentMiddle
+                tail: queue.currentTail
                 widthCapped: footerBar.naturalWidth > root.widthCap
 
-                onCopyRequested: launcher.copyToClipboard(incomingUrl)
+                onCopyRequested: launcher.copyToClipboard(queue.currentRaw)
+            }
+
+            Row {
+                id: dotsRow
+
+                visible: root.queued
+                height: visible ? root.dotsRowHeight : 0
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: root.dotsSpacing
+
+                Repeater {
+                    model: queue.count
+
+                    Rectangle {
+                        width: index === queue.cursor ? 18 : 8
+                        height: root.dotsRowHeight
+                        radius: 4
+                        color: index === queue.cursor ? root.accent
+                                                      : root.textFaint
+                    }
+                }
             }
         }
+    }
+
+    QueueChrome {
+        id: queueChrome
+
+        surface: surface
+        visible: root.queued
+        accent: root.accent
+        textStrong: root.textStrong
+        textFaint: root.textFaint
     }
 
     Item {
@@ -144,7 +200,22 @@ Window {
         Keys.onPressed: (event) => {
             if (event.modifiers & Qt.ControlModifier
                     && event.key === Qt.Key_C) {
-                launcher.copyToClipboard(incomingUrl)
+                launcher.copyToClipboard(queue.currentRaw)
+                event.accepted = true
+                return
+            }
+            if (event.key === Qt.Key_Escape) {
+                if (event.modifiers & Qt.ShiftModifier)
+                    queue.clear()
+                else
+                    queue.removeCurrent()
+                event.accepted = true
+                return
+            }
+            if (event.modifiers & Qt.ShiftModifier
+                    && (event.key === Qt.Key_Right
+                        || event.key === Qt.Key_Left)) {
+                queue.moveCursor(event.key === Qt.Key_Right ? 1 : -1)
                 event.accepted = true
                 return
             }

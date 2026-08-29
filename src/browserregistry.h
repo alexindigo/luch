@@ -34,6 +34,8 @@ public:
     Q_INVOKABLE QString execAt(int row) const;
     Q_INVOKABLE QString idAt(int row) const;
 
+    void setMimeMatches(const QStringList &mimeMatches);
+
 private:
     struct Item {
         QString id;

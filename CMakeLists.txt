@@ -39,6 +39,10 @@ qt_add_executable(luch
     src/main.cpp
     src/pickerwindow.cpp
     src/pickerwindow.h
+    src/queue.cpp
+    src/queue.h
+    src/singleinstance.cpp
+    src/singleinstance.h
     src/target.cpp
     src/target.h
     src/xdgactivation.cpp
@@ -55,6 +59,7 @@ qt_add_qml_module(luch
     QML_FILES
         ui/BrowserDelegate.qml
         ui/Main.qml
+        ui/QueueChrome.qml
         ui/TargetFooter.qml
         ui/XdgIconLoader.qml
 )

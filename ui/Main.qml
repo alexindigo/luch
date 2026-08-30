@@ -82,7 +82,7 @@ Window {
         anchors.bottomMargin: root.surfaceMargin
             + (root.queued ? root.badgeOverhang : 0)
         radius: 16
-        color: "#d91e293b"
+        color: "#e61e293b"
         border.width: 1
         border.color: "#26f2f4f6"
 
@@ -146,9 +146,7 @@ Window {
                 width: parent.width
                 accent: root.accent
                 textStrong: root.textStrong
-                textSoft: root.textSoft
                 textFaint: root.textFaint
-                textDimmest: "#64748b"
                 scheme: queue.currentScheme
                 hostOrDir: queue.currentHostOrDir
                 middle: queue.currentMiddle

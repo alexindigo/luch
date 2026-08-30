@@ -17,7 +17,7 @@ Item {
         radius: height / 2
         x: chrome.surface.x + chrome.surface.width - width + 6
         y: chrome.surface.y - height / 2
-        color: "#d91e293b"
+        color: "#e61e293b"
         border.width: 1
         border.color: "#26f2f4f6"
 
@@ -43,7 +43,7 @@ Item {
         radius: 14
         x: chrome.surface.x - width / 2
         y: chrome.surface.y + 18 + 52 - 14
-        color: chevLeftMouse.containsMouse ? "#26f2f4f6" : "#d91e293b"
+        color: chevLeftMouse.containsMouse ? "#26f2f4f6" : "#e61e293b"
         border.width: 1
         border.color: "#26f2f4f6"
         opacity: queue.cursor > 0 ? 1 : 0.35
@@ -75,7 +75,7 @@ Item {
         radius: 14
         x: chrome.surface.x + chrome.surface.width - width / 2
         y: chrome.surface.y + 18 + 52 - 14
-        color: chevRightMouse.containsMouse ? "#26f2f4f6" : "#d91e293b"
+        color: chevRightMouse.containsMouse ? "#26f2f4f6" : "#e61e293b"
         border.width: 1
         border.color: "#26f2f4f6"
         opacity: queue.cursor < queue.count - 1 ? 1 : 0.35

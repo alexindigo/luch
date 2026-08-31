@@ -4,3 +4,13 @@ version = 1
 path = "**"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 Copyright = "Alex Indigo"
+
+[[annotations]]
+path = ["assets/lists/debounce.json", "assets/lists/query-filter.json", "assets/lists/clean-urls.json"]
+SPDX-License-Identifier = "MPL-2.0"
+Copyright = "The Brave Authors"
+
+[[annotations]]
+path = "assets/lists/public_suffix_list.dat"
+SPDX-License-Identifier = "MPL-2.0"
+Copyright = "The Public Suffix List contributors"

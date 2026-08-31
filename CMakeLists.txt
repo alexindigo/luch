@@ -80,6 +80,8 @@ target_link_libraries(luch PRIVATE
 )
 
 install(TARGETS luch RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(DIRECTORY assets/lists/
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/luch/lists")
 install(FILES luch.desktop DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
 install(FILES assets/luch.svg
         DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps")

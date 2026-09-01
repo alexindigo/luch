@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QString>
+#include <QVariantMap>
 
 namespace Luch {
 
@@ -18,6 +19,15 @@ struct Target {
     QString hostOrDir;
     QString middle;
     QString tail;
+
+    // Plugin slices ({"urlclean": {…}, …}), filled by the augmentation
+    // pipeline at append time. The target itself stays
+    // original-canonical — plugins only add data.
+    QVariantMap pluginData;
+
+    // The plugin-facing flat view: {"kind": "url"|"htmlfile",
+    // "url": urlForm, "raw": raw arg}.
+    QVariantMap toMap() const;
 
     static bool parse(const QString &argument, Target &target,
                       QString *errorMessage);

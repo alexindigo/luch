@@ -26,6 +26,8 @@ if(TARGET xdgiconqml::xdgiconqml AND NOT TARGET xdgiconqmlplugin)
 endif()
 
 qt_add_executable(luch
+    src/augmentationpipeline.cpp
+    src/augmentationpipeline.h
     src/browserregistry.cpp
     src/browserregistry.h
     src/chromiumsocket.cpp
@@ -65,6 +67,8 @@ qt_add_qml_module(luch
 )
 
 target_include_directories(luch PRIVATE src ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(luch PRIVATE
+    LUCH_INSTALLED_PLUGINS_DIR="${CMAKE_INSTALL_FULL_LIBDIR}/luch/plugins")
 # qpa native-interface headers (for the wl_surface of the popup) live in
 # the versioned private include tree; Arch's Qt targets don't export it.
 target_include_directories(luch PRIVATE
@@ -95,6 +99,8 @@ target_link_libraries(luch-urlclean-engine PUBLIC Qt6::Core)
 install(TARGETS luch RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(DIRECTORY assets/lists/
         DESTINATION "${CMAKE_INSTALL_DATADIR}/luch/lists")
+install(FILES src/pluginapi/luchaugmenter.h
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/luch")
 install(FILES luch.desktop DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
 install(FILES assets/luch.svg
         DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps")

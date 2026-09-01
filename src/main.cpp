@@ -1,6 +1,10 @@
 #include <LayerShellQt/Shell>
 #include <QCommandLineParser>
+#include <QCoreApplication>
 #include <QGuiApplication>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QProcess>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -10,6 +14,7 @@
 
 #include <cstring>
 
+#include "augmentationpipeline.h"
 #include "browserregistry.h"
 #include "config.h"
 #include "dbustransport.h"
@@ -57,6 +62,36 @@ int setDefaultHandler()
     return 0;
 }
 
+// `luch --inspect <url>`: QtCore-only early-out (like --set-default) —
+// parse the target, run the augmentation pipeline, print
+// {"roster":[…],"payload":{…}} as indented JSON. No Wayland, no QML.
+int inspectTarget(int argc, char *argv[], const QString &argument)
+{
+    QCoreApplication app(argc, argv);
+    QCoreApplication::setApplicationName(QStringLiteral("Luch"));
+    QCoreApplication::setOrganizationName(QStringLiteral("luch"));
+
+    Luch::Target target;
+    QString parseError;
+    if (!Luch::Target::parse(argument, target, &parseError)) {
+        qCritical().noquote() << parseError;
+        return 2;
+    }
+
+    Luch::AugmentationPipeline pipeline;
+    pipeline.discoverAndLoad();
+    const QVariantMap payload = pipeline.run(target.toMap());
+
+    const QJsonObject root{
+        {QStringLiteral("roster"),
+         QJsonArray::fromVariantList(pipeline.roster())},
+        {QStringLiteral("payload"), QJsonObject::fromVariantMap(payload)},
+    };
+    printf("%s\n",
+           QJsonDocument(root).toJson(QJsonDocument::Indented).constData());
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char *argv[])
@@ -64,6 +99,15 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; ++i) {
         if (qstrcmp(argv[i], "--set-default") == 0)
             return setDefaultHandler();
+        if (qstrcmp(argv[i], "--inspect") == 0) {
+            if (i + 1 >= argc) {
+                qCritical().noquote()
+                    << QStringLiteral("luch: --inspect needs a target");
+                return 2;
+            }
+            return inspectTarget(argc, argv,
+                                 QString::fromLocal8Bit(argv[i + 1]));
+        }
     }
 
 // Capture the pre-LayerShellQt state of QT_WAYLAND_SHELL_INTEGRATION:
@@ -120,6 +164,13 @@ const QString priorShellIntegration =
     if (!single.tryClaim(target.raw))
         return 0; // handed off to the running instance
 
+    Luch::Config config;
+    Luch::AugmentationPipeline pipeline;
+    pipeline.discoverAndLoad();
+
+    target.pluginData = pipeline.run(target.toMap())
+                            .value(QStringLiteral("plugins"))
+                            .toMap();
     Luch::TargetQueue queue;
     queue.append(target);
 
@@ -129,7 +180,6 @@ const QString priorShellIntegration =
                           QStringLiteral("application/xhtml+xml")}
             : QStringList{QStringLiteral("x-scheme-handler/http")};
 
-    Luch::Config config;
     Luch::BrowserRegistry registry(&config, mimeMatches);
     Luch::Launcher launcher;
     launcher.setTarget(target);
@@ -137,15 +187,21 @@ const QString priorShellIntegration =
                                         priorShellIntegration);
 
     // Forwarded targets enter the queue; refused ones are logged and
-    // dropped — they must not kill the owner.
+    // dropped — they must not kill the owner. Forwarded targets run the
+    // augmentation pipeline too, before they join the queue.
     QObject::connect(&single, &Luch::SingleInstance::targetArrived, &app,
-                     [&queue](const QString &raw) {
+                     [&queue, &pipeline](const QString &raw) {
                          Luch::Target t;
                          QString err;
-                         if (Luch::Target::parse(raw, t, &err))
+                         if (Luch::Target::parse(raw, t, &err)) {
+                             t.pluginData =
+                                 pipeline.run(t.toMap())
+                                     .value(QStringLiteral("plugins"))
+                                     .toMap();
                              queue.append(t);
-                         else
+                         } else {
                              qWarning().noquote() << err;
+                         }
                      });
 
     QQmlApplicationEngine engine;
@@ -155,6 +211,8 @@ const QString priorShellIntegration =
                                              &registry);
     engine.rootContext()->setContextProperty(QStringLiteral("launcher"),
                                              &launcher);
+    engine.rootContext()->setContextProperty(QStringLiteral("pluginRoster"),
+                                             pipeline.roster());
     engine.load(QUrl(QStringLiteral("qrc:/Luch/ui/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
         qCritical() << "luch: QML root failed to load";

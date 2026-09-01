@@ -17,6 +17,8 @@ class TargetQueue : public QObject
     Q_PROPERTY(QString currentHostOrDir READ currentHostOrDir NOTIFY currentChanged)
     Q_PROPERTY(QString currentMiddle READ currentMiddle NOTIFY currentChanged)
     Q_PROPERTY(QString currentTail READ currentTail NOTIFY currentChanged)
+    // {"original": current.toMap(), "plugins": current.pluginData}
+    Q_PROPERTY(QVariantMap currentPayload READ currentPayload NOTIFY currentChanged)
 
 public:
     explicit TargetQueue(QObject *parent = nullptr);
@@ -35,11 +37,17 @@ public:
     QString currentHostOrDir() const;
     QString currentMiddle() const;
     QString currentTail() const;
+    QVariantMap currentPayload() const;
+
+    // Reserved for future async plugins: patches one slice of the
+    // current target's payload and emits payloadChanged.
+    Q_INVOKABLE void patchSlice(const QString &id, const QVariantMap &slice);
 
 Q_SIGNALS:
     void countChanged();
     void cursorChanged();
     void currentChanged();
+    void payloadChanged();
 
 private:
     QList<Target> m_items;

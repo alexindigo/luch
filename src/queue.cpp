@@ -92,4 +92,21 @@ QString TargetQueue::currentTail() const
     return t ? t->tail : QString();
 }
 
+QVariantMap TargetQueue::currentPayload() const
+{
+    const Target *t = current();
+    if (!t)
+        return {};
+    return {{QStringLiteral("original"), t->toMap()},
+            {QStringLiteral("plugins"), t->pluginData}};
+}
+
+void TargetQueue::patchSlice(const QString &id, const QVariantMap &slice)
+{
+    if (m_cursor < 0 || m_cursor >= m_items.size())
+        return;
+    m_items[m_cursor].pluginData.insert(id, slice);
+    Q_EMIT payloadChanged();
+}
+
 } // namespace Luch

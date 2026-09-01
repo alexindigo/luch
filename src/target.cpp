@@ -85,6 +85,14 @@ bool makeFileTarget(const QString &raw, const QString &path, Target &target,
 
 } // namespace
 
+QVariantMap Target::toMap() const
+{
+    return {{QStringLiteral("kind"), kind == Url ? QStringLiteral("url")
+                                                : QStringLiteral("htmlfile")},
+            {QStringLiteral("url"), urlForm},
+            {QStringLiteral("raw"), raw}};
+}
+
 bool Target::parse(const QString &argument, Target &target,
                    QString *errorMessage)
 {

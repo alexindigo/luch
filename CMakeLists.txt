@@ -96,11 +96,30 @@ set_target_properties(luch-urlclean-engine PROPERTIES
 target_include_directories(luch-urlclean-engine PUBLIC src)
 target_link_libraries(luch-urlclean-engine PUBLIC Qt6::Core)
 
+# urlclean plugin: Brave-parity tracker stripping as a runtime-loadable
+# .so (+ sidecar manifest urlclean.json installed next to it).
+add_library(luch-plugin-urlclean MODULE
+    src/plugins/urlclean/urlcleanplugin.cpp
+    src/plugins/urlclean/urlcleanplugin.h
+)
+set_target_properties(luch-plugin-urlclean PROPERTIES
+    PREFIX "" OUTPUT_NAME "urlclean")
+target_include_directories(luch-plugin-urlclean PRIVATE src/pluginapi)
+target_compile_definitions(luch-plugin-urlclean PRIVATE
+    LUCH_INSTALLED_LISTS_DIR="${CMAKE_INSTALL_FULL_DATADIR}/luch/lists")
+target_link_libraries(luch-plugin-urlclean PRIVATE
+    luch-urlclean-engine Qt6::Core)
+
 install(TARGETS luch RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(DIRECTORY assets/lists/
         DESTINATION "${CMAKE_INSTALL_DATADIR}/luch/lists")
 install(FILES src/pluginapi/luchaugmenter.h
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/luch")
+install(TARGETS luch-plugin-urlclean
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/luch/plugins")
+install(FILES src/plugins/urlclean/urlcleanplugin.json
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/luch/plugins"
+        RENAME urlclean.json)
 install(FILES luch.desktop DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
 install(FILES assets/luch.svg
         DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps")

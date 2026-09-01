@@ -71,7 +71,7 @@ bool tryMozilla(const QString &app, const QString &pinnedProfile,
         candidates << name;
     }
     if (candidates.isEmpty()) {
-        qCInfo(luchTransport) << "mozilla transport: no bus name for"
+        qCDebug(luchTransport) << "mozilla transport: no bus name for"
                               << app << "profile" << pinnedProfile;
         return false;
     }
@@ -93,11 +93,11 @@ bool tryMozilla(const QString &app, const QString &pinnedProfile,
     const QDBusMessage reply =
         QDBusConnection::sessionBus().call(call, QDBus::BlockWithGui);
     if (reply.type() == QDBusMessage::ErrorMessage) {
-        qCInfo(luchTransport) << "mozilla transport: OpenURL failed:"
+        qCWarning(luchTransport) << "mozilla transport: OpenURL failed:"
                               << reply.errorMessage();
         return false;
     }
-    qCInfo(luchTransport) << "mozilla transport: OpenURL accepted by"
+    qCDebug(luchTransport) << "mozilla transport: OpenURL accepted by"
                           << service;
     return true;
 }
@@ -108,7 +108,7 @@ bool tryFreeDesktop(const QString &desktopId, const QString &url,
     if (!desktopId.contains(QLatin1Char('.')))
         return false;
     if (!registeredBusNames().contains(desktopId)) {
-        qCInfo(luchTransport) << "fdo transport: no bus name" << desktopId;
+        qCDebug(luchTransport) << "fdo transport: no bus name" << desktopId;
         return false;
     }
 
@@ -128,11 +128,11 @@ bool tryFreeDesktop(const QString &desktopId, const QString &url,
     const QDBusMessage reply =
         QDBusConnection::sessionBus().call(call, QDBus::BlockWithGui);
     if (reply.type() == QDBusMessage::ErrorMessage) {
-        qCInfo(luchTransport) << "fdo transport: Open failed:"
+        qCWarning(luchTransport) << "fdo transport: Open failed:"
                               << reply.errorMessage();
         return false;
     }
-    qCInfo(luchTransport) << "fdo transport: Open accepted by" << desktopId;
+    qCDebug(luchTransport) << "fdo transport: Open accepted by" << desktopId;
     return true;
 }
 
@@ -147,7 +147,7 @@ bool tryGtkApplication(const QString &desktopId, const QString &url,
     if (!desktopId.contains(QLatin1String("epiphany"), Qt::CaseInsensitive))
         return false;
     if (!registeredBusNames().contains(desktopId)) {
-        qCInfo(luchTransport) << "gtk transport: no bus name" << desktopId;
+        qCDebug(luchTransport) << "gtk transport: no bus name" << desktopId;
         return false;
     }
 
@@ -181,11 +181,11 @@ bool tryGtkApplication(const QString &desktopId, const QString &url,
     const QDBusMessage reply =
         QDBusConnection::sessionBus().call(call, QDBus::BlockWithGui);
     if (reply.type() == QDBusMessage::ErrorMessage) {
-        qCInfo(luchTransport) << "gtk transport: Activate failed:"
+        qCWarning(luchTransport) << "gtk transport: Activate failed:"
                               << reply.errorMessage();
         return false;
     }
-    qCInfo(luchTransport) << "gtk transport: Activate accepted by"
+    qCDebug(luchTransport) << "gtk transport: Activate accepted by"
                           << desktopId;
     return true;
 }

@@ -212,7 +212,7 @@ bool Launcher::tryTransports(const QString &token)
     if (m_dbusTransport) {
         if (m_dbusTransport->openUrl(mozillaApp, m_pendingProfile,
                                      m_pendingDesktopId, url, token)) {
-            qCInfo(luchTransport) << "dbus transport routed target";
+            qCDebug(luchTransport) << "dbus transport routed target";
             return true;
         }
         if (!mozillaApp.isEmpty())
@@ -258,11 +258,11 @@ bool Launcher::tryTransports(const QString &token)
     const ChromiumSocket::Result result = ChromiumSocket::notifyRunningInstance(
         userDataDirs, QDir::currentPath().toStdString(), rawArgv, 1000);
     if (result != ChromiumSocket::Result::Acked) {
-        qCInfo(luchTransport)
+        qCDebug(luchTransport)
             << "chromium socket transport: no ACK, falling back to CLI";
         return false;
     }
-    qCInfo(luchTransport) << "chromium socket transport routed target";
+    qCDebug(luchTransport) << "chromium socket transport routed target";
     return true;
 }
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.0] — 2026-08-31
 
 ### Feature
 
@@ -12,12 +12,28 @@ parameters with Brave's own data lists (debounce, query-filter,
 clean-urls), offering the cleaned destination as `plugins.urlclean.url`.
 Launch and copy keep using the original URL — payload-aware UI arrives
 in a later round. `luch --inspect <url>` prints the roster and payload
-as JSON without touching Wayland/QML.
+as JSON without touching Wayland/QML. The picker also gains accessibility
+annotations (named tiles, list, footer, copy control, queue chrome,
+alert on errors) exposed over AT-SPI.
 
-- feat: urlclean plugin — Brave-parity tracker stripping as first .so (`4c4c44b`)
-- feat: plugin augmentation framework — .so plugins, payload pipeline, roster (`6e6e61e`)
-- feat: URL-cleaning engine — eTLD matcher + Brave-style three-stage cleaner (`30c5654`)
-- feat: vendor Brave URL-cleaning lists and PSL snapshot (`04be52b`)
+- feat: urlclean plugin — Brave-parity tracker stripping as first .so (`a6d44a4`)
+- feat: plugin augmentation framework — .so plugins, payload pipeline, roster (`338bb59`)
+- feat: URL-cleaning engine — eTLD matcher + Brave-style three-stage cleaner (`88cc0e6`)
+- feat: vendor Brave URL-cleaning lists and PSL snapshot (`c23c98f`)
+- feat: accessibility annotations for the picker (`b4e7b6e`)
+
+### Fix
+
+The footer's long-URL handling is corrected: instead of collapsing the
+entire middle to a stub while the window ballooned to fit the full text,
+the middle now elides only as much as needed — as two fragments around a
+spaced accent-colored marker — and the tail matches the middle tone.
+Surface opacity bumped 85% → 90% so labels survive busy backgrounds.
+Routine transport narration dropped to the debug category so launches
+stay silent.
+
+- fix: elide footer middle only as much as needed (`25a73de`)
+- fix: quiet routine transport logs to the debug category (`4c3b494`)
 
 ## [0.1.0] — 2026-08-28
 

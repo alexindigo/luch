@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased]
+
+### Feature
+
+Luch gains a plugin architecture: runtime-loadable `.so` plugins with
+sidecar manifests augment a per-target payload (`{"original": …,
+"plugins": {<id>: {…}}}`) that flows from the engine toward the UI. The
+first plugin, `urlclean`, unwraps redirect wrappers and strips tracking
+parameters with Brave's own data lists (debounce, query-filter,
+clean-urls), offering the cleaned destination as `plugins.urlclean.url`.
+Launch and copy keep using the original URL — payload-aware UI arrives
+in a later round. `luch --inspect <url>` prints the roster and payload
+as JSON without touching Wayland/QML.
+
+- feat: urlclean plugin — Brave-parity tracker stripping as first .so (`4c4c44b`)
+- feat: plugin augmentation framework — .so plugins, payload pipeline, roster (`6e6e61e`)
+- feat: URL-cleaning engine — eTLD matcher + Brave-style three-stage cleaner (`30c5654`)
+- feat: vendor Brave URL-cleaning lists and PSL snapshot (`04be52b`)
+
 ## [0.1.0] — 2026-08-28
 
 ### Feature

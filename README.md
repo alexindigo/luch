@@ -57,6 +57,7 @@ Luch is never registered at install time — only when you ask.
 
 ```sh
 luch <url|html-file>   # show the picker for a URL or local HTML file
+luch --inspect <url>   # print plugin roster + payload as JSON (no GUI)
 luch --set-default
 luch --version
 ```
@@ -154,6 +155,47 @@ bus is available, `QLocalServer` socket otherwise), shown as a carousel
 (counter badge, chevrons, indicator dots); `Shift+←/→` moves between
 queued targets, `Esc` dismisses the current one, `Shift+Esc` drops the
 whole queue.
+
+## Plugins
+
+Luch has a plugin architecture: runtime-loadable `.so` plugins
+(`QPluginLoader`) that augment a per-target **payload** — data derived
+from the original target, exposed as
+`{"original": …, "plugins": {<id>: {…}}}`. The target stays
+original-canonical: plugins only add data; launch and copy always use
+the original.
+
+A plugin ships as a pair: `<id>.so` plus a sidecar manifest `<id>.json`
+(`{"id", "title", "description", "priority"}`). Discovery order (first
+id wins, so a userland pair replaces a built-in as a unit):
+
+1. `$LUCH_PLUGINS_DIR` (if set)
+2. `~/.local/share/luch/plugins/`
+3. the installed plugins dir (`<libdir>/luch/plugins`)
+
+An optional `~/.config/luch/plugins/<id>.json` holds per-plugin settings
+(`{"enabled": false}` disables; absent file = enabled, empty settings).
+
+Payload contract: a plugin's slice lives under its id; the only reserved
+key inside a slice is `"url"` — the plugin's outcome URL, present only
+when it actually produces one. All other keys are plugin-owned, slice
+presence itself carries no meaning, and the reserved set only grows
+additively (never redefines a key).
+
+### urlclean (bundled)
+
+The first plugin is a Brave-parity URL cleaner: redirect unwrapping
+(debounce), query filtering (including the conditional `mkt_tok`/`h_*`
+trackers) and the clean-urls ruleset, driven by Brave's own vendored
+lists (`assets/lists/`, MPL-2.0) plus a public-suffix-list snapshot for
+the debounce failsafes. It emits strip stats for every http(s) target
+and adds `"url"` (+ `"debouncedFrom"`) when cleaning produced a
+different URL. Refresh the lists with `tools/update-lists.sh`.
+
+Third-party plugins: build against the installed
+`<includedir>/luch/luchaugmenter.h`, then drop the `.so` + manifest pair
+into a discovery dir. ABI note: pre-1.0 the interface vtable may still
+change; the IID bumps on any breaking change.
 
 ## License
 

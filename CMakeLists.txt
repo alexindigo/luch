@@ -79,6 +79,19 @@ target_link_libraries(luch PRIVATE
     LayerShellQt::Interface
 )
 
+# URL-cleaning engine (QtCore-only): shared by the urlclean plugin and
+# linkable by future plugins; PIC because plugins are MODULE libraries.
+add_library(luch-urlclean-engine STATIC
+    src/effectivetld.cpp
+    src/effectivetld.h
+    src/urlcleaner.cpp
+    src/urlcleaner.h
+)
+set_target_properties(luch-urlclean-engine PROPERTIES
+    POSITION_INDEPENDENT_CODE ON)
+target_include_directories(luch-urlclean-engine PUBLIC src)
+target_link_libraries(luch-urlclean-engine PUBLIC Qt6::Core)
+
 install(TARGETS luch RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(DIRECTORY assets/lists/
         DESTINATION "${CMAKE_INSTALL_DATADIR}/luch/lists")

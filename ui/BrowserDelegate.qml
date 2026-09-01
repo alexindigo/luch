@@ -8,6 +8,13 @@ Item {
 
     readonly property bool selected: index === root.selectedIndex
 
+    Accessible.role: Accessible.Button
+    Accessible.name: model.name
+    Accessible.description: qsTr("Press %1 to open in %2")
+                            .arg(model.shortcutHint).arg(model.name)
+    Accessible.selected: selected
+    Accessible.onPressAction: root.launchAt(index)
+
     Text {
         id: shortcutHint
 
@@ -19,6 +26,7 @@ Item {
         font.pixelSize: 12
         font.weight: Font.Light
         horizontalAlignment: Text.AlignHCenter
+        Accessible.ignored: true // the tile button already announces both
     }
 
     Rectangle {
@@ -82,6 +90,7 @@ Item {
         font.weight: Font.Light
         elide: Text.ElideRight
         horizontalAlignment: Text.AlignHCenter
+        Accessible.ignored: true // announced via the tile button
     }
 
     MouseArea {

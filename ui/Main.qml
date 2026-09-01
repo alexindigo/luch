@@ -106,6 +106,8 @@ Window {
                 currentIndex: root.selectedIndex
                 spacing: root.rowSpacing
                 delegate: BrowserDelegate {}
+                Accessible.role: Accessible.List
+                Accessible.name: qsTr("Browsers")
 
                 onCountChanged: {
                     if (root.selectedIndex >= count)
@@ -138,6 +140,7 @@ Window {
                 font.weight: Font.Light
                 elide: Text.ElideRight
                 horizontalAlignment: Text.AlignHCenter
+                Accessible.role: Accessible.Alert
             }
 
             TargetFooter {

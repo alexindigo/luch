@@ -20,6 +20,8 @@ Item {
         color: "#e61e293b"
         border.width: 1
         border.color: "#26f2f4f6"
+        Accessible.role: Accessible.StaticText
+        Accessible.name: badgeText.text
 
         Text {
             id: badgeText
@@ -47,6 +49,9 @@ Item {
         border.width: 1
         border.color: "#26f2f4f6"
         opacity: queue.cursor > 0 ? 1 : 0.35
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Previous target")
+        Accessible.onPressAction: queue.moveCursor(-1)
 
         Text {
             anchors.centerIn: parent
@@ -79,6 +84,9 @@ Item {
         border.width: 1
         border.color: "#26f2f4f6"
         opacity: queue.cursor < queue.count - 1 ? 1 : 0.35
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Next target")
+        Accessible.onPressAction: queue.moveCursor(1)
 
         Text {
             anchors.centerIn: parent

@@ -60,10 +60,18 @@ Item {
 
     implicitHeight: Math.max(segFlow.height, copyControl.height)
 
+    Accessible.role: Accessible.StaticText
+    // The full untruncated target (segments render with elision; AT users
+    // get the whole thing).
+    Accessible.name: footer.scheme + footer.hostOrDir
+                     + (footer.middle || "") + footer.tail
+
     signal copyRequested()
 
     Flow {
         id: segFlow
+
+        Accessible.ignored: true // announced via the parent's name
 
         anchors.verticalCenter: parent.verticalCenter
         // Overflow modes fill the container exactly; the full line gets
@@ -203,6 +211,9 @@ Item {
         height: footer.copySize
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Copy target")
+        Accessible.onPressAction: footer.copyRequested()
 
         XdgIcon {
             id: copyIcon

@@ -1,0 +1,1 @@
+{"id":"socket-probe","title":"Socket probe","description":"Verification-only plugin: probes AF_INET/AF_UNIX socket creation to prove the offline sandbox. Never installed.","phase":"detect"}

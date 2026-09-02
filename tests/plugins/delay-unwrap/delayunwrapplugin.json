@@ -1,0 +1,1 @@
+{"id":"delay-unwrap","title":"Delayed unwrap","description":"Verification-only plugin: declares inet and sleeps 2s to simulate a slow online resolve. Never installed.","phase":"unwrap","inet":true}

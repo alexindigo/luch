@@ -12,6 +12,9 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core DBus Gui Quick WaylandClient
                                             WaylandScannerTools)
 find_package(LayerShellQt REQUIRED)
 find_package(WaylandScanner REQUIRED)
+# seccomp network sandbox for the offline plugin worker.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SECCOMP REQUIRED IMPORTED_TARGET libseccomp)
 find_path(WAYLAND_PROTOCOLS_PATH
           staging/xdg-activation/xdg-activation-v1.xml
           PATHS /usr/share/wayland-protocols
@@ -47,6 +50,11 @@ qt_add_executable(luch
     src/singleinstance.h
     src/target.cpp
     src/target.h
+    src/worker/inetworker.cpp
+    src/worker/inetworker.h
+    src/worker/offlineworker.cpp
+    src/worker/offlineworker.h
+    src/worker/workerrunner.h
     src/xdgactivation.cpp
     src/xdgactivation.h
 )
@@ -81,6 +89,7 @@ target_link_libraries(luch PRIVATE
     Qt6::Quick
     Qt6::WaylandClient
     LayerShellQt::Interface
+    PkgConfig::SECCOMP
 )
 
 # URL-cleaning engine (QtCore-only): shared by the urlclean plugin and
@@ -146,3 +155,6 @@ foreach(luch_icon_size 256 128 64 48 32)
                 "${CMAKE_INSTALL_DATADIR}/icons/hicolor/${luch_icon_size}x${luch_icon_size}/apps"
             RENAME luch.png)
 endforeach()
+
+# Verification plugins — built, never installed.
+add_subdirectory(tests)

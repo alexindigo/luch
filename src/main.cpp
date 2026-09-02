@@ -198,6 +198,11 @@ const QString priorShellIntegration =
                              qWarning().noquote() << err;
                          }
                      });
+    // Late slices from inet plugins land as trace entries on the
+    // current target; results for gone targets are dropped by the
+    // queue (patchSlice no-ops without a current item).
+    QObject::connect(&pipeline, &Luch::AugmentationPipeline::sliceLanded,
+                     &queue, &Luch::TargetQueue::patchSlice);
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("queue"),

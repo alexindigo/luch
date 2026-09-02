@@ -23,6 +23,7 @@
 #include "queue.h"
 #include "singleinstance.h"
 #include "target.h"
+#include "urltools.h"
 #include "xdgactivation.h"
 
 namespace {
@@ -215,6 +216,9 @@ const QString priorShellIntegration =
                                              pipeline.roster());
     engine.rootContext()->setContextProperty(QStringLiteral("pipeline"),
                                              &pipeline);
+    Luch::UrlTools urlTools;
+    engine.rootContext()->setContextProperty(QStringLiteral("urlTools"),
+                                             &urlTools);
     engine.load(QUrl(QStringLiteral("qrc:/Luch/ui/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
         qCritical() << "luch: QML root failed to load";

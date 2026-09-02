@@ -1,0 +1,1 @@
+{"id":"verdict-detect","title":"Verdict test","description":"Verification-only plugin: emits a malicious verdict with source verdict-test to exercise the red affordances. Never installed.","phase":"detect"}

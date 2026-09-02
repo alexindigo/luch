@@ -29,7 +29,9 @@ function _decode(s) {
 function decompose(urlString) {
     const s = String(urlString)
     if (s === "")
-        return { scheme: "", hostOrDir: "", middle: "", tail: "" }
+        return { scheme: "", hostOrDir: "", middle: "", tail: "",
+                 host: "", port: -1, path: "", query: null,
+                 fragment: null }
 
     let rest = s
     let scheme = ""
@@ -76,10 +78,11 @@ function decompose(urlString) {
         }
     }
     host = host.toLowerCase()
+    let hostOrDir = host
     if (port !== -1) {
         const defaultPort = scheme === "https://" ? 443 : 80
         if (port !== defaultPort)
-            host += ":" + port
+            hostOrDir += ":" + port
     }
 
     // fragment first ('#' has precedence for query splitting)
@@ -101,13 +104,22 @@ function decompose(urlString) {
     const lastSlash = path.lastIndexOf("/")
     const middle = lastSlash > 0 ? path.slice(0, lastSlash) : ""
     let tail = path.length === 0 ? "" : "/" + path.slice(lastSlash + 1)
+    let query = null
+    let fragment = null
     if (queryPart !== null) {
-        const q = _decode(queryPart)
-        if (q !== "")
-            tail += "?" + q
+        query = _decode(queryPart)
+        if (query !== "")
+            tail += "?" + query
+        else
+            query = ""
     }
-    if (hashPart !== null)
-        tail += "#" + _decode(hashPart)
+    if (hashPart !== null) {
+        fragment = _decode(hashPart)
+        tail += "#" + fragment
+    }
 
-    return { scheme: scheme, hostOrDir: host, middle: middle, tail: tail }
+    return { scheme: scheme, hostOrDir: hostOrDir, middle: middle,
+             tail: tail, host: host, port: port, path: path,
+             query: queryPart !== null ? query : null,
+             fragment: hashPart !== null ? fragment : null }
 }

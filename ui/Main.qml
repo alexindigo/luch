@@ -40,7 +40,13 @@ Window {
             + (lightsVisible ? lightsStrip.implicitHeight + 10 : 0)
             + (footerBar.height > 0 ? footerSpacing + footerBar.height : 0)
             + (launchError !== "" ? errorLabel.height + 10 : 0)
+            + (redVerdict ? warningLine.height + 10 : 0)
+            + (dissectionVisible ? dissectionSpacing
+                                  + dissectionPanel.implicitHeight : 0)
             + (queued ? 10 + dotsRowHeight : 0)
+    readonly property int dissectionSpacing: 10
+    readonly property bool dissectionVisible:
+        dissectionPanel.pinned || redVerdict
     visible: false
     color: "transparent"
 
@@ -60,6 +66,12 @@ Window {
     property int selectedVariant: 0
     // Current payload trace entries — feed the lights subpanel.
     property var payloadTrace: []
+    // Worst Detect verdict for the current payload ("", "amber", "red")
+    // and the source that flagged it — drives the verdict dot, the
+    // warning line and the dissection auto-show.
+    property string worstVerdict: ""
+    property string verdictSource: ""
+    readonly property bool redVerdict: worstVerdict === "red"
     readonly property string presentedUrl: payloadVariants.length > 0
         ? String(payloadVariants[Math.max(0, Math.min(
               selectedVariant, payloadVariants.length - 1))])
@@ -83,6 +95,28 @@ Window {
         root._previousVariantCount = list.length
         payloadVariants = list
         payloadTrace = (payload && payload.trace) ? payload.trace : []
+        refreshVerdict(payload && payload.detected
+                       ? payload.detected : [])
+    }
+
+    function refreshVerdict(detected) {
+        worstVerdict = ""
+        verdictSource = ""
+        for (let i = 0; i < detected.length; i++) {
+            const v = String(detected[i].verdict || "").toLowerCase()
+            if (v === "")
+                continue
+            if (v === "malicious" || v === "dangerous"
+                    || v === "phishing") {
+                worstVerdict = "red" // worst — stop here
+                verdictSource = String(detected[i].source || "")
+                return
+            }
+            if (worstVerdict === "") {
+                worstVerdict = "amber"
+                verdictSource = String(detected[i].source || "")
+            }
+        }
     }
 
     property int _previousVariantCount: 0
@@ -227,9 +261,33 @@ Window {
                 textStrong: root.textStrong
                 textFaint: root.textFaint
                 presentedUrl: root.presentedUrl
+                verdict: root.worstVerdict
                 widthCapped: footerBar.naturalWidth > root.widthCap
 
                 onCopyRequested: launcher.copyToClipboard(root.presentedUrl)
+            }
+
+            Text {
+                id: warningLine
+
+                visible: root.redVerdict
+                text: qsTr("flagged by %1").arg(root.verdictSource)
+                color: "#f87171"
+                font.family: "Jura"
+                font.pixelSize: 12
+                font.weight: Font.Light
+                horizontalAlignment: Text.AlignHCenter
+                width: parent.width
+                Accessible.role: Accessible.Alert
+            }
+
+            DissectionPanel {
+                id: dissectionPanel
+
+                visible: root.dissectionVisible
+                width: parent.width
+                presentedUrl: root.presentedUrl
+                pinned: false // settings pin wires in with the daemon
             }
 
             Row {

@@ -20,3 +20,13 @@ set_target_properties(test-plugin-delay-unwrap PROPERTIES
 target_include_directories(test-plugin-delay-unwrap PRIVATE
     ${CMAKE_SOURCE_DIR}/src/pluginapi)
 target_link_libraries(test-plugin-delay-unwrap PRIVATE Qt6::Core)
+
+add_library(test-plugin-verdict-detect MODULE
+    plugins/verdict-detect/verdictdetectplugin.cpp
+    plugins/verdict-detect/verdictdetectplugin.h
+)
+set_target_properties(test-plugin-verdict-detect PROPERTIES
+    PREFIX "" OUTPUT_NAME "verdict-detect")
+target_include_directories(test-plugin-verdict-detect PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/pluginapi)
+target_link_libraries(test-plugin-verdict-detect PRIVATE Qt6::Core)

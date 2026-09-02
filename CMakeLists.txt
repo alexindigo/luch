@@ -50,6 +50,8 @@ qt_add_executable(luch
     src/singleinstance.h
     src/target.cpp
     src/target.h
+    src/urltools.cpp
+    src/urltools.h
     src/worker/inetworker.cpp
     src/worker/inetworker.h
     src/worker/offlineworker.cpp
@@ -68,6 +70,7 @@ qt_add_qml_module(luch
     VERSION 1.0
     QML_FILES
         ui/BrowserDelegate.qml
+        ui/DissectionPanel.qml
         ui/LightsStrip.qml
         ui/Main.qml
         ui/QueueChrome.qml
@@ -79,7 +82,8 @@ qt_add_qml_module(luch
 
 target_include_directories(luch PRIVATE src ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(luch PRIVATE
-    LUCH_INSTALLED_PLUGINS_DIR="${CMAKE_INSTALL_FULL_LIBDIR}/luch/plugins")
+    LUCH_INSTALLED_PLUGINS_DIR="${CMAKE_INSTALL_FULL_LIBDIR}/luch/plugins"
+    LUCH_INSTALLED_LISTS_DIR="${CMAKE_INSTALL_FULL_DATADIR}/luch/lists")
 # qpa native-interface headers (for the wl_surface of the popup) live in
 # the versioned private include tree; Arch's Qt targets don't export it.
 target_include_directories(luch PRIVATE
@@ -93,6 +97,7 @@ target_link_libraries(luch PRIVATE
     Qt6::WaylandClient
     LayerShellQt::Interface
     PkgConfig::SECCOMP
+    luch-urlclean-engine
 )
 
 # URL-cleaning engine (QtCore-only): shared by the urlclean plugin and

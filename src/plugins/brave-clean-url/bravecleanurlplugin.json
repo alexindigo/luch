@@ -1,0 +1,1 @@
+{"id":"brave-clean-url","title":"Clean URLs","description":"Strips known tracking parameters from links. Lists vendored from Brave (query-filter + clean-urls), refreshed per release.","phase":"clean"}

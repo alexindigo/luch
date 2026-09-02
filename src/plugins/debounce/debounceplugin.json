@@ -1,0 +1,1 @@
+{"id":"debounce","title":"Debounce","description":"Unwraps redirect wrappers from links (tracking-redirect extraction from the URL itself). Rules vendored from Brave (debounce list), refreshed per release.","phase":"unwrap"}

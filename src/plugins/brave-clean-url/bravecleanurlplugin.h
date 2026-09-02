@@ -6,19 +6,20 @@
 #include "luchaugmenter.h"
 #include "urlcleaner.h"
 
-// First self-hosting plugin: Brave-parity URL cleaning (debounce →
-// query-filter → clean-urls) driven by the vendored Brave lists.
-class UrlCleanPlugin : public QObject, public LuchTargetAugmenter
+// Clean stage plugin: Brave-parity tracker stripping (query-filter +
+// clean-urls stages). Idempotent — converges in one pass.
+class BraveCleanUrlPlugin : public QObject, public LuchTargetAugmenter
 {
     Q_OBJECT
     // IID tag only — manifest metadata lives in the sidecar
-    // urlcleanplugin.json, installed as urlclean.json next to the .so.
+    // bravecleanurlplugin.json, installed as brave-clean-url.json next
+    // to the .so.
     Q_PLUGIN_METADATA(IID LuchTargetAugmenter_iid)
     Q_INTERFACES(LuchTargetAugmenter)
 
 public:
     void init(const QVariantMap &userConfig) override;
-    QVariantMap augment(const QVariantMap &target,
+    QVariantMap augment(const QVariantMap &chainState,
                         const QVariantMap &priorSlices) const override;
 
 private:

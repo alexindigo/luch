@@ -308,9 +308,11 @@ bool UrlCleaner::loadDebounce(const QString &path)
 
 // ------------------------------------------------------------ debounce
 
-QString UrlCleaner::debounce(const QUrl &url, bool &changed) const
+QString UrlCleaner::debounce(const QUrl &url, bool &changed,
+                             bool &shortener) const
 {
     changed = false;
+    shortener = false;
     const QString candidate = matchCandidate(url);
 
     // First rule that produces a valid result wins; rules whose
@@ -321,6 +323,10 @@ QString UrlCleaner::debounce(const QUrl &url, bool &changed) const
             continue;
         if (!matchesAny(rule.include, candidate))
             continue;
+        // The host matches a wrapper pattern — flag it even when this
+        // rule's extraction/failsafes fail below (the online fallback
+        // trigger is data-driven from this flag).
+        shortener = true;
 
         QString value;
         if (rule.action == DebounceRule::RegexPath
@@ -469,28 +475,30 @@ void UrlCleaner::stripStage(const QList<StripRule> &rules, bool unionMode,
     }
 }
 
-// ---------------------------------------------------------------- clean
+// --------------------------------------------------------- public stages
 
-CleanResult UrlCleaner::clean(const QUrl &url) const
+DebounceResult UrlCleaner::unwrap(const QUrl &url) const
+{
+    DebounceResult result;
+    bool changed = false;
+    const QString unwrapped = debounce(url, changed, result.shortener);
+    if (changed) {
+        result.url = unwrapped;
+        result.changed = true;
+        result.debouncedFrom = url.host();
+    }
+    return result;
+}
+
+CleanResult UrlCleaner::strip(const QUrl &url) const
 {
     CleanResult result;
     QString spec = url.toString(QUrl::FullyEncoded);
     result.url = spec;
 
-    bool debounced = false;
-    const QString unwrapped = debounce(url, debounced);
-    QUrl working = url;
-    if (debounced) {
-        working = QUrl(unwrapped);
-        spec = unwrapped;
-        result.debounced = true;
-        result.debouncedFrom = url.host();
-        result.changed = true;
-    }
-
-    stripStage(m_queryFilterRules, /*unionMode=*/true, working, spec,
+    stripStage(m_queryFilterRules, /*unionMode=*/true, url, spec,
                result);
-    stripStage(m_cleanUrlsRules, /*unionMode=*/false, working, spec,
+    stripStage(m_cleanUrlsRules, /*unionMode=*/false, url, spec,
                result);
 
     result.url = spec;

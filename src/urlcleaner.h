@@ -17,14 +17,23 @@ struct CleanResult
     bool changed = false;
     int strippedCount = 0;
     QStringList strippedParams; // encounter order, deduped
-    bool debounced = false;
-    QString debouncedFrom;  // wrapper host when debounced
 };
 
-// Brave-parity URL cleaner: debounce → query-filter → clean-urls, driven
-// by Brave's vendored data lists. QtCore-only. Replicates Brave's behavior
-// (components/debounce, components/query_filter, components/url_sanitizer)
-// including failsafes; see the plan for the full digest.
+// Result of the unwrap (debounce) stage.
+struct DebounceResult
+{
+    QString url;            // unwrapped spec, "" when unchanged
+    bool changed = false;
+    QString debouncedFrom;  // wrapper host when debounced
+    bool shortener = false; // host matches a wrapper include pattern,
+                            // even when no rule fires
+};
+
+// Brave-parity URL cleaner stages, driven by Brave's vendored data
+// lists. QtCore-only. Replicates Brave's behavior (components/debounce,
+// components/query_filter, components/url_sanitizer) including
+// failsafes; see the plan for the full digest. Stage plugins each call
+// one stage: debounce → unwrap(); brave-clean-url → strip().
 class UrlCleaner
 {
 public:
@@ -33,7 +42,13 @@ public:
     // no-ops. Returns true if all four loaded.
     bool loadLists(const QString &dir);
 
-    CleanResult clean(const QUrl &url) const;
+    // Unwrap stage: one hop of rule-based redirect extraction. Feed
+    // the result back (fixpoint) to unwrap nested wrappers.
+    DebounceResult unwrap(const QUrl &url) const;
+
+    // Clean stage: query-filter + clean-urls strip. Idempotent —
+    // converges in one pass.
+    CleanResult strip(const QUrl &url) const;
 
 private:
     struct DebounceRule {
@@ -55,7 +70,8 @@ private:
     bool loadDebounce(const QString &path);
     bool loadStripRules(const QString &path, QList<StripRule> &out);
 
-    QString debounce(const QUrl &url, bool &changed) const;
+    QString debounce(const QUrl &url, bool &changed,
+                     bool &shortener) const;
     void stripStage(const QList<StripRule> &rules, bool unionMode,
                     const QUrl &url, QString &spec,
                     CleanResult &result) const;

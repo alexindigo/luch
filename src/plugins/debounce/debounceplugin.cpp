@@ -1,10 +1,10 @@
-#include "urlcleanplugin.h"
+#include "debounceplugin.h"
 
 #include <QDir>
 #include <QStandardPaths>
 #include <QUrl>
 
-void UrlCleanPlugin::init(const QVariantMap &userConfig)
+void DebouncePlugin::init(const QVariantMap &userConfig)
 {
     Q_UNUSED(userConfig); // no plugin-specific settings yet
 
@@ -20,10 +20,10 @@ void UrlCleanPlugin::init(const QVariantMap &userConfig)
                   : QStringLiteral(LUCH_INSTALLED_LISTS_DIR);
     }
     if (!m_cleaner.loadLists(dir))
-        qWarning() << "urlclean: some lists failed to load from" << dir;
+        qWarning() << "debounce: some lists failed to load from" << dir;
 }
 
-QVariantMap UrlCleanPlugin::augment(const QVariantMap &chainState,
+QVariantMap DebouncePlugin::augment(const QVariantMap &chainState,
                                     const QVariantMap &priorSlices) const
 {
     Q_UNUSED(priorSlices);
@@ -37,17 +37,18 @@ QVariantMap UrlCleanPlugin::augment(const QVariantMap &chainState,
         && url.scheme() != QLatin1String("https"))
         return {};
 
-    const Luch::CleanResult result = m_cleaner.clean(url);
+    const Luch::DebounceResult result = m_cleaner.unwrap(url);
     QVariantMap slice{
-        {QStringLiteral("strippedCount"), result.strippedCount},
-        {QStringLiteral("strippedParams"), result.strippedParams},
-        {QStringLiteral("debounced"), result.debounced},
+        {QStringLiteral("debounced"), result.changed},
     };
+    // Wrapper-pattern flag — emitted even when no rule fires; the
+    // pipeline's online fallback (future plugin) triggers on it.
+    if (result.shortener)
+        slice.insert(QStringLiteral("shortener"), true);
     if (result.changed) {
         slice.insert(QStringLiteral("url"), result.url);
-        if (result.debounced)
-            slice.insert(QStringLiteral("debouncedFrom"),
-                         result.debouncedFrom);
+        slice.insert(QStringLiteral("debouncedFrom"),
+                     result.debouncedFrom);
     }
     return slice;
 }

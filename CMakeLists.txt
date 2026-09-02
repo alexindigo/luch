@@ -96,18 +96,32 @@ set_target_properties(luch-urlclean-engine PROPERTIES
 target_include_directories(luch-urlclean-engine PUBLIC src)
 target_link_libraries(luch-urlclean-engine PUBLIC Qt6::Core)
 
-# urlclean plugin: Brave-parity tracker stripping as a runtime-loadable
-# .so (+ sidecar manifest urlclean.json installed next to it).
-add_library(luch-plugin-urlclean MODULE
-    src/plugins/urlclean/urlcleanplugin.cpp
-    src/plugins/urlclean/urlcleanplugin.h
+# Stage plugins over the URL-cleaning engine: each calls one stage of
+# luch-urlclean-engine and ships as a runtime-loadable .so (+ sidecar
+# manifest <id>.json installed next to it).
+add_library(luch-plugin-debounce MODULE
+    src/plugins/debounce/debounceplugin.cpp
+    src/plugins/debounce/debounceplugin.h
 )
-set_target_properties(luch-plugin-urlclean PROPERTIES
-    PREFIX "" OUTPUT_NAME "urlclean")
-target_include_directories(luch-plugin-urlclean PRIVATE src/pluginapi)
-target_compile_definitions(luch-plugin-urlclean PRIVATE
+set_target_properties(luch-plugin-debounce PROPERTIES
+    PREFIX "" OUTPUT_NAME "debounce")
+target_include_directories(luch-plugin-debounce PRIVATE src/pluginapi)
+target_compile_definitions(luch-plugin-debounce PRIVATE
     LUCH_INSTALLED_LISTS_DIR="${CMAKE_INSTALL_FULL_DATADIR}/luch/lists")
-target_link_libraries(luch-plugin-urlclean PRIVATE
+target_link_libraries(luch-plugin-debounce PRIVATE
+    luch-urlclean-engine Qt6::Core)
+
+add_library(luch-plugin-brave-clean-url MODULE
+    src/plugins/brave-clean-url/bravecleanurlplugin.cpp
+    src/plugins/brave-clean-url/bravecleanurlplugin.h
+)
+set_target_properties(luch-plugin-brave-clean-url PROPERTIES
+    PREFIX "" OUTPUT_NAME "brave-clean-url")
+target_include_directories(luch-plugin-brave-clean-url PRIVATE
+    src/pluginapi)
+target_compile_definitions(luch-plugin-brave-clean-url PRIVATE
+    LUCH_INSTALLED_LISTS_DIR="${CMAKE_INSTALL_FULL_DATADIR}/luch/lists")
+target_link_libraries(luch-plugin-brave-clean-url PRIVATE
     luch-urlclean-engine Qt6::Core)
 
 install(TARGETS luch RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
@@ -115,11 +129,14 @@ install(DIRECTORY assets/lists/
         DESTINATION "${CMAKE_INSTALL_DATADIR}/luch/lists")
 install(FILES src/pluginapi/luchaugmenter.h
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/luch")
-install(TARGETS luch-plugin-urlclean
+install(TARGETS luch-plugin-debounce luch-plugin-brave-clean-url
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/luch/plugins")
-install(FILES src/plugins/urlclean/urlcleanplugin.json
+install(FILES src/plugins/debounce/debounceplugin.json
         DESTINATION "${CMAKE_INSTALL_LIBDIR}/luch/plugins"
-        RENAME urlclean.json)
+        RENAME debounce.json)
+install(FILES src/plugins/brave-clean-url/bravecleanurlplugin.json
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/luch/plugins"
+        RENAME brave-clean-url.json)
 install(FILES luch.desktop DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
 install(FILES assets/luch.svg
         DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps")

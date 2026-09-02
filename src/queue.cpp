@@ -95,17 +95,45 @@ QString TargetQueue::currentTail() const
 QVariantMap TargetQueue::currentPayload() const
 {
     const Target *t = current();
-    if (!t)
-        return {};
-    return {{QStringLiteral("original"), t->toMap()},
-            {QStringLiteral("plugins"), t->pluginData}};
+    return t ? t->pluginData : QVariantMap{};
 }
 
 void TargetQueue::patchSlice(const QString &id, const QVariantMap &slice)
 {
     if (m_cursor < 0 || m_cursor >= m_items.size())
         return;
-    m_items[m_cursor].pluginData.insert(id, slice);
+    QVariantMap payload = m_items[m_cursor].pluginData;
+
+    QVariantList trace = payload.value(QStringLiteral("trace")).toList();
+    // Iteration number: this plugin's existing entries + 1.
+    int iteration = 1;
+    for (const QVariant &entry : trace) {
+        const QVariantMap e = entry.toMap();
+        if (e.value(QStringLiteral("plugin")).toString() == id)
+            iteration = e.value(QStringLiteral("iteration")).toInt() + 1;
+    }
+    trace.append(QVariantMap{{QStringLiteral("plugin"), id},
+                             {QStringLiteral("iteration"), iteration},
+                             {QStringLiteral("data"), slice}});
+    payload.insert(QStringLiteral("trace"), trace);
+
+    // A late slice that produced a URL moves the effective URL.
+    const QString out = slice.value(QStringLiteral("url")).toString();
+    if (!out.isEmpty())
+        payload.insert(QStringLiteral("url"), out);
+
+    if (!slice.value(QStringLiteral("verdict")).isNull()) {
+        QVariantList detected =
+            payload.value(QStringLiteral("detected")).toList();
+        detected.append(QVariantMap{{QStringLiteral("plugin"), id},
+                                    {QStringLiteral("verdict"),
+                                     slice.value(QStringLiteral("verdict"))},
+                                    {QStringLiteral("source"),
+                                     slice.value(QStringLiteral("source"))}});
+        payload.insert(QStringLiteral("detected"), detected);
+    }
+
+    m_items[m_cursor].pluginData = payload;
     Q_EMIT payloadChanged();
 }
 

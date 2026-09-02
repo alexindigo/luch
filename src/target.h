@@ -20,8 +20,9 @@ struct Target {
     QString middle;
     QString tail;
 
-    // Plugin slices ({"urlclean": {…}, …}), filled by the augmentation
-    // pipeline at append time. The target itself stays
+    // Full augmentation payload — {"original": targetMap,
+    // "url": <effective>, "detected": […], "trace": […]} — filled by
+    // the augmentation pipeline at append time. The target itself stays
     // original-canonical — plugins only add data.
     QVariantMap pluginData;
 

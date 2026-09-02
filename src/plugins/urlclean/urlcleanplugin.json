@@ -1,1 +1,1 @@
-{"id":"urlclean","title":"Clean URLs","description":"Strips known tracking parameters and unwraps redirect wrappers before a link is opened. Lists vendored from Brave (debounce, query-filter, clean-urls), refreshed per release.","priority":10}
+{"id":"urlclean","title":"Clean URLs","description":"Strips known tracking parameters and unwraps redirect wrappers before a link is opened. Lists vendored from Brave (debounce, query-filter, clean-urls), refreshed per release.","phase":"clean"}

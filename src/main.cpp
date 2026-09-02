@@ -168,9 +168,7 @@ const QString priorShellIntegration =
     Luch::AugmentationPipeline pipeline;
     pipeline.discoverAndLoad();
 
-    target.pluginData = pipeline.run(target.toMap())
-                            .value(QStringLiteral("plugins"))
-                            .toMap();
+    target.pluginData = pipeline.run(target.toMap());
     Luch::TargetQueue queue;
     queue.append(target);
 
@@ -194,10 +192,7 @@ const QString priorShellIntegration =
                          Luch::Target t;
                          QString err;
                          if (Luch::Target::parse(raw, t, &err)) {
-                             t.pluginData =
-                                 pipeline.run(t.toMap())
-                                     .value(QStringLiteral("plugins"))
-                                     .toMap();
+                             t.pluginData = pipeline.run(t.toMap());
                              queue.append(t);
                          } else {
                              qWarning().noquote() << err;

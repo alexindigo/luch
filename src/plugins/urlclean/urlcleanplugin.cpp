@@ -23,16 +23,16 @@ void UrlCleanPlugin::init(const QVariantMap &userConfig)
         qWarning() << "urlclean: some lists failed to load from" << dir;
 }
 
-QVariantMap UrlCleanPlugin::augment(const QVariantMap &target,
+QVariantMap UrlCleanPlugin::augment(const QVariantMap &chainState,
                                     const QVariantMap &priorSlices) const
 {
     Q_UNUSED(priorSlices);
 
     // Only http(s) URL targets are actionable.
-    if (target.value(QStringLiteral("kind")).toString()
+    if (chainState.value(QStringLiteral("kind")).toString()
         != QLatin1String("url"))
         return {};
-    const QUrl url(target.value(QStringLiteral("url")).toString());
+    const QUrl url(chainState.value(QStringLiteral("url")).toString());
     if (url.scheme() != QLatin1String("http")
         && url.scheme() != QLatin1String("https"))
         return {};

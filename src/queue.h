@@ -17,7 +17,10 @@ class TargetQueue : public QObject
     Q_PROPERTY(QString currentHostOrDir READ currentHostOrDir NOTIFY currentChanged)
     Q_PROPERTY(QString currentMiddle READ currentMiddle NOTIFY currentChanged)
     Q_PROPERTY(QString currentTail READ currentTail NOTIFY currentChanged)
-    // {"original": current.toMap(), "plugins": current.pluginData}
+    // Full payload of the current target: {"original": targetMap,
+    // "url": <effective>, "detected": […], "trace": […]}. Slice
+    // presence is the stage state — a plugin with no trace entry has
+    // not delivered yet.
     Q_PROPERTY(QVariantMap currentPayload READ currentPayload NOTIFY currentChanged)
 
 public:
@@ -39,8 +42,10 @@ public:
     QString currentTail() const;
     QVariantMap currentPayload() const;
 
-    // Reserved for future async plugins: patches one slice of the
-    // current target's payload and emits payloadChanged.
+    // Reserved for async plugins: a late slice from plugin `id`
+    // arrives here — appended as the plugin's next trace entry
+    // {plugin, iteration, data}; main-level "url" and "detected"
+    // update accordingly, then payloadChanged fires.
     Q_INVOKABLE void patchSlice(const QString &id, const QVariantMap &slice);
 
 Q_SIGNALS:

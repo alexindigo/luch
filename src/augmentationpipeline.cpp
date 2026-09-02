@@ -14,6 +14,39 @@
 namespace Luch {
 
 // static
+bool AugmentationPipeline::phaseFromString(const QString &name,
+                                           Phase &phase)
+{
+    if (name == QLatin1String("unwrap")) {
+        phase = Phase::Unwrap;
+        return true;
+    }
+    if (name == QLatin1String("clean")) {
+        phase = Phase::Clean;
+        return true;
+    }
+    if (name == QLatin1String("detect")) {
+        phase = Phase::Detect;
+        return true;
+    }
+    return false; // closed set — anything else is invalid
+}
+
+// static
+QString AugmentationPipeline::phaseToString(Phase phase)
+{
+    switch (phase) {
+    case Phase::Unwrap:
+        return QStringLiteral("unwrap");
+    case Phase::Detect:
+        return QStringLiteral("detect");
+    case Phase::Clean:
+        break;
+    }
+    return QStringLiteral("clean");
+}
+
+// static
 bool AugmentationPipeline::readManifest(const QString &manifestPath,
                                         Manifest &manifest)
 {
@@ -30,13 +63,18 @@ bool AugmentationPipeline::readManifest(const QString &manifestPath,
     const QString soPath =
         QFileInfo(manifestPath).absolutePath() + QLatin1Char('/') + base
         + QStringLiteral(".so");
-    if (id.isEmpty() || id != base || !QFile::exists(soPath))
+    Phase phase;
+    if (id.isEmpty() || id != base || !QFile::exists(soPath)
+        || !phaseFromString(
+            obj.value(QStringLiteral("phase")).toString(), phase))
         return false;
     manifest.id = id;
     manifest.title = obj.value(QStringLiteral("title")).toString();
     manifest.description =
         obj.value(QStringLiteral("description")).toString();
-    manifest.priority = obj.value(QStringLiteral("priority")).toInt();
+    manifest.phase = phase;
+    manifest.inet =
+        obj.value(QStringLiteral("inet")).toBool(); // default false
     manifest.pluginPath = soPath;
     return true;
 }
@@ -112,10 +150,15 @@ void AugmentationPipeline::discoverAndLoad()
         }
     }
 
+    // Phase-ladder order: Unwrap → Clean → Detect. Within Unwrap:
+    // offline (inet:false) unwrap to fixpoint, then online fallback.
+    // Within Clean/Detect: id order (settings override later).
     std::sort(manifests.begin(), manifests.end(),
               [](const Manifest &a, const Manifest &b) {
-                  if (a.priority != b.priority)
-                      return a.priority < b.priority;
+                  if (a.phase != b.phase)
+                      return a.phase < b.phase;
+                  if (a.phase == Phase::Unwrap && a.inet != b.inet)
+                      return !a.inet; // offline unwrap before online
                   return a.id < b.id;
               });
 
@@ -127,6 +170,9 @@ void AugmentationPipeline::discoverAndLoad()
                           {QStringLiteral("title"), manifest.title},
                           {QStringLiteral("description"),
                            manifest.description},
+                          {QStringLiteral("phase"),
+                           phaseToString(manifest.phase)},
+                          {QStringLiteral("inet"), manifest.inet},
                           {QStringLiteral("enabled"), enabled},
                           {QStringLiteral("loaded"), false}};
         if (!enabled) {
@@ -148,7 +194,8 @@ void AugmentationPipeline::discoverAndLoad()
             continue;
         }
         plugin->init(userConfig);
-        m_plugins.append({manifest.id, plugin});
+        m_plugins.append({manifest.id, manifest.phase, manifest.inet,
+                          plugin});
         entry[QStringLiteral("loaded")] = true;
         m_roster.append(entry);
     }
@@ -156,25 +203,62 @@ void AugmentationPipeline::discoverAndLoad()
 
 QVariantMap AugmentationPipeline::run(const QVariantMap &targetMap) const
 {
-    QVariantMap plugins;
-    for (const LoadedPlugin &loaded : m_plugins) {
-        // priorSlices = the slices accumulated so far (read-only by
-        // contract); each plugin derives from the ORIGINAL target only.
-        const QVariantMap slice =
-            loaded.plugin->augment(targetMap, plugins);
-        const QVariant urlValue = slice.value(QStringLiteral("url"));
-        if (urlValue.isValid()
-            && (urlValue.metaType().id() != QMetaType::QString
-                || urlValue.toString().isEmpty())) {
-            qWarning().noquote()
-                << "luch: dropping invalid slice from plugin:"
-                << loaded.id;
-            continue;
+    QVariantList trace;
+    QVariantList detected;
+    QString working = targetMap.value(QStringLiteral("url")).toString();
+    const QString original = working;
+
+    for (const LoadedPlugin &p : m_plugins) {
+        // Fixpoint (Matryoshka): feed the plugin its own output until
+        // it noops or the hop cap dies on adversarial ping-pong.
+        for (int hop = 1; hop <= m_maxHops; ++hop) {
+            QVariantMap chainState = targetMap;
+            chainState.insert(QStringLiteral("url"), working);
+            chainState.insert(QStringLiteral("original"), original);
+            const QVariantMap slice = p.plugin->augment(chainState, {});
+
+            // Reserved-key sanitation: a "url" that is not a nonempty
+            // string is an invalid slice — drop the key, keep the rest.
+            QVariantMap data = slice;
+            if (data.contains(QStringLiteral("url"))) {
+                const QVariant urlValue =
+                    data.value(QStringLiteral("url"));
+                if (!urlValue.isValid()
+                    || urlValue.metaType().id() != QMetaType::QString
+                    || urlValue.toString().isEmpty()) {
+                    qWarning().noquote()
+                        << "luch: dropping invalid url from slice:"
+                        << p.id;
+                    data.remove(QStringLiteral("url"));
+                }
+            }
+
+            trace.append(QVariantMap{
+                {QStringLiteral("plugin"), p.id},
+                {QStringLiteral("iteration"), hop},
+                {QStringLiteral("data"), data}});
+
+            if (p.phase == Phase::Detect
+                && !data.value(QStringLiteral("verdict")).isNull())
+                detected.append(QVariantMap{
+                    {QStringLiteral("plugin"), p.id},
+                    {QStringLiteral("verdict"),
+                     data.value(QStringLiteral("verdict"))},
+                    {QStringLiteral("source"),
+                     data.value(QStringLiteral("source"))}});
+
+            const QString out =
+                data.value(QStringLiteral("url")).toString();
+            if (out.isEmpty() || out == working)
+                break; // noop → fixpoint reached for this stage
+            working = out;
         }
-        plugins.insert(loaded.id, slice);
     }
+
     return {{QStringLiteral("original"), targetMap},
-            {QStringLiteral("plugins"), plugins}};
+            {QStringLiteral("url"), working},
+            {QStringLiteral("detected"), detected},
+            {QStringLiteral("trace"), trace}};
 }
 
 QVariantList AugmentationPipeline::roster() const

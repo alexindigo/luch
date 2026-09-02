@@ -45,6 +45,19 @@ Window {
     property int selectedIndex: 0
     property string launchError: ""
 
+    // The one URL the main panel knows: the effective URL from the
+    // payload (trace tail), falling back to the raw target. Footer,
+    // launch and copy all consume this.
+    property string presentedUrl: ""
+
+    function refreshPresentedUrl() {
+        const payload = queue.currentPayload
+        presentedUrl = (payload && payload.url)
+                       ? String(payload.url) : queue.currentRaw
+    }
+
+    Component.onCompleted: refreshPresentedUrl()
+
     function launchAt(index: int) {
         const exec = browserRegistry.execAt(index)
         if (exec === "")
@@ -58,6 +71,11 @@ Window {
 
         function onCurrentChanged() {
             root.selectedIndex = 0
+            root.refreshPresentedUrl()
+        }
+
+        function onPayloadChanged() {
+            root.refreshPresentedUrl()
         }
     }
 
@@ -150,13 +168,10 @@ Window {
                 accent: root.accent
                 textStrong: root.textStrong
                 textFaint: root.textFaint
-                scheme: queue.currentScheme
-                hostOrDir: queue.currentHostOrDir
-                middle: queue.currentMiddle
-                tail: queue.currentTail
+                presentedUrl: root.presentedUrl
                 widthCapped: footerBar.naturalWidth > root.widthCap
 
-                onCopyRequested: launcher.copyToClipboard(queue.currentRaw)
+                onCopyRequested: launcher.copyToClipboard(root.presentedUrl)
             }
 
             Row {
@@ -201,7 +216,7 @@ Window {
         Keys.onPressed: (event) => {
             if (event.modifiers & Qt.ControlModifier
                     && event.key === Qt.Key_C) {
-                launcher.copyToClipboard(queue.currentRaw)
+                launcher.copyToClipboard(root.presentedUrl)
                 event.accepted = true
                 return
             }

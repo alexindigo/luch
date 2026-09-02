@@ -72,6 +72,7 @@ qt_add_qml_module(luch
         ui/QueueChrome.qml
         ui/TargetFooter.qml
         ui/XdgIconLoader.qml
+        ui/decompose.js
 )
 
 target_include_directories(luch PRIVATE src ${CMAKE_CURRENT_BINARY_DIR})

@@ -1,5 +1,6 @@
 import QtQuick
 import XdgIcon
+import "decompose.js" as Decompose
 
 Item {
     id: footer
@@ -8,10 +9,11 @@ Item {
     property color textStrong
     property color textFaint
 
-    property string scheme: ""
-    property string hostOrDir: ""
-    property string middle: ""
-    property string tail: ""
+    // The one URL the footer knows: a flat string, decomposed here
+    // (QML-owned render function; C++ stops pre-decomposing).
+    property string presentedUrl: ""
+
+    readonly property var parts: Decompose.decompose(presentedUrl)
 
     readonly property int copySize: 26
     readonly property int copyGap: 10
@@ -61,10 +63,9 @@ Item {
     implicitHeight: Math.max(segFlow.height, copyControl.height)
 
     Accessible.role: Accessible.StaticText
-    // The full untruncated target (segments render with elision; AT users
-    // get the whole thing).
-    Accessible.name: footer.scheme + footer.hostOrDir
-                     + (footer.middle || "") + footer.tail
+    // The full untruncated presented URL (segments render with elision;
+    // AT users get the whole thing).
+    Accessible.name: footer.presentedUrl
 
     signal copyRequested()
 
@@ -84,8 +85,8 @@ Item {
         Text {
             id: schemeText
 
-            text: footer.scheme
-            visible: footer.scheme !== ""
+            text: footer.parts.scheme
+            visible: footer.parts.scheme !== ""
             color: footer.textFaint
             font.family: "Jura"
             font.pixelSize: footer.fontPx
@@ -95,8 +96,8 @@ Item {
         Text {
             id: hostText
 
-            text: footer.hostOrDir
-            visible: footer.hostOrDir !== ""
+            text: footer.parts.hostOrDir
+            visible: footer.parts.hostOrDir !== ""
             color: footer.textStrong
             font.family: "Jura"
             font.pixelSize: footer.fontPx
@@ -111,8 +112,8 @@ Item {
         Text {
             id: midText
 
-            text: footer.middle
-            visible: footer.middle !== "" && !footer.collapsed
+            text: footer.parts.middle
+            visible: footer.parts.middle !== "" && !footer.collapsed
             color: footer.textFaint
             font.family: "Jura"
             font.pixelSize: footer.fontPx
@@ -131,7 +132,7 @@ Item {
             id: headMetrics
 
             font: midHeadText.font
-            text: footer.middle
+            text: footer.parts.middle
             elide: Text.ElideRight
             elideWidth: footer.headFragWidth
         }
@@ -141,11 +142,11 @@ Item {
 
             text: {
                 const t = headMetrics.elidedText
-                return t !== footer.middle && t.endsWith("…")
+                return t !== footer.parts.middle && t.endsWith("…")
                        ? t.slice(0, -1) : t
             }
             visible: footer.collapsed && !footer.middleDoomed
-                && footer.middle !== ""
+                && footer.parts.middle !== ""
             color: footer.textFaint
             font.family: "Jura"
             font.pixelSize: footer.fontPx
@@ -156,7 +157,7 @@ Item {
             id: markerText
 
             text: " … "
-            visible: footer.collapsed && footer.middle !== ""
+            visible: footer.collapsed && footer.parts.middle !== ""
             color: footer.accent
             font.family: "Jura"
             font.pixelSize: footer.fontPx
@@ -167,7 +168,7 @@ Item {
             id: tailMetrics
 
             font: midTailText.font
-            text: footer.middle
+            text: footer.parts.middle
             elide: Text.ElideLeft
             elideWidth: footer.tailFragWidth
         }
@@ -177,11 +178,11 @@ Item {
 
             text: {
                 const t = tailMetrics.elidedText
-                return t !== footer.middle && t.startsWith("…")
+                return t !== footer.parts.middle && t.startsWith("…")
                        ? t.slice(1) : t
             }
             visible: footer.collapsed && !footer.middleDoomed
-                && footer.middle !== ""
+                && footer.parts.middle !== ""
             color: footer.textFaint
             font.family: "Jura"
             font.pixelSize: footer.fontPx
@@ -191,8 +192,8 @@ Item {
         Text {
             id: tailText
 
-            text: footer.tail
-            visible: footer.tail !== ""
+            text: footer.parts.tail
+            visible: footer.parts.tail !== ""
             color: footer.textFaint
             font.family: "Jura"
             font.pixelSize: footer.fontPx

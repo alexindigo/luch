@@ -32,6 +32,9 @@ Item {
     implicitWidth: clusterRow.implicitWidth
     implicitHeight: clusterRow.implicitHeight
 
+    Accessible.role: Accessible.Grouping
+    Accessible.name: qsTr("Plugin lights")
+
     function reset() {
         dispatched = {}
     }

@@ -226,6 +226,7 @@ Item {
             id: verdictDot
 
             visible: footer.verdict !== ""
+            Accessible.ignored: footer.verdict === ""
             width: footer.dotSize
             height: footer.dotSize
             radius: footer.dotSize / 2

@@ -24,6 +24,9 @@ Column {
 
     spacing: 6
 
+    Accessible.role: Accessible.Grouping
+    Accessible.name: qsTr("URL variants")
+
     Repeater {
         model: pills.variants.length
 

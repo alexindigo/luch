@@ -118,28 +118,6 @@ QStringList AugmentationPipeline::pluginDirs() const
     return dirs;
 }
 
-QVariantMap AugmentationPipeline::userConfigFor(const QString &id) const
-{
-    const QString path =
-        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
-        + QStringLiteral("/luch/plugins/") + id + QStringLiteral(".json");
-    QFile file(path);
-    if (!file.exists())
-        return {}; // absent file = enabled, empty settings
-    if (!file.open(QIODevice::ReadOnly)) {
-        qWarning().noquote()
-            << "luch: cannot read plugin config:" << path;
-        return {};
-    }
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-    if (!doc.isObject()) {
-        qWarning().noquote()
-            << "luch: invalid plugin config JSON:" << path;
-        return {};
-    }
-    return doc.object().toVariantMap();
-}
-
 void AugmentationPipeline::discoverAndLoad()
 {
     if (m_discovered)
@@ -198,7 +176,10 @@ void AugmentationPipeline::discoverAndLoad()
               });
 
     for (const Manifest &manifest : manifests) {
-        const QVariantMap userConfig = userConfigFor(manifest.id);
+        // Absent entry = defaults: enabled (unless declared online —
+        // privacy-first), declared capabilities.
+        const QVariantMap userConfig =
+            m_pluginConfigs.value(manifest.id).toMap();
         // Privacy-first: declared-online plugins are disabled by
         // default — nothing phones home until the user opts in.
         // Offline plugins default to enabled.

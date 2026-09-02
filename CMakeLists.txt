@@ -8,7 +8,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core DBus Gui Quick WaylandClient
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core DBus Gui Quick Widgets
+                                            WaylandClient
                                             WaylandScannerTools)
 find_package(LayerShellQt REQUIRED)
 find_package(WaylandScanner REQUIRED)
@@ -46,6 +47,8 @@ qt_add_executable(luch
     src/pickerwindow.h
     src/queue.cpp
     src/queue.h
+    src/settings.cpp
+    src/settings.h
     src/singleinstance.cpp
     src/singleinstance.h
     src/target.cpp
@@ -74,6 +77,7 @@ qt_add_qml_module(luch
         ui/LightsStrip.qml
         ui/Main.qml
         ui/QueueChrome.qml
+        ui/SettingsWindow.qml
         ui/TargetFooter.qml
         ui/VariantPills.qml
         ui/XdgIconLoader.qml
@@ -94,6 +98,7 @@ target_link_libraries(luch PRIVATE
     Qt6::DBus
     Qt6::Gui
     Qt6::Quick
+    Qt6::Widgets
     Qt6::WaylandClient
     LayerShellQt::Interface
     PkgConfig::SECCOMP

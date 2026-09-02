@@ -287,7 +287,7 @@ Window {
                 visible: root.dissectionVisible
                 width: parent.width
                 presentedUrl: root.presentedUrl
-                pinned: false // settings pin wires in with the daemon
+                pinned: settings.showDissection
             }
 
             Row {

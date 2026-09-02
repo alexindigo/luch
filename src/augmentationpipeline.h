@@ -60,6 +60,15 @@ public:
     int maxHops() const { return m_maxHops; }
     void setMaxHops(int hops) { m_maxHops = qMax(1, hops); }
 
+    // Plugin configuration source — the unified settings.json plugins
+    // map ({"<id>": {"enabled": …, "inet": …, …}}), set once before
+    // discoverAndLoad(). The superseded per-plugin config files are
+    // migrated into it by the settings layer.
+    void setPluginConfigs(const QVariantMap &configs)
+    {
+        m_pluginConfigs = configs;
+    }
+
 Q_SIGNALS:
     // A late slice from an inet plugin landed: {plugin → id, data →
     // slice}; the consumer (queue.patchSlice) appends it as the
@@ -108,7 +117,6 @@ private:
     };
 
     QStringList pluginDirs() const;
-    QVariantMap userConfigFor(const QString &id) const;
     // Reads + validates a sidecar manifest ({id,title,description,
     // phase,inet} where id must equal the file's base name and phase
     // must be in the closed set).
@@ -146,6 +154,7 @@ private:
     quint64 m_nextToken = 1;
 
     QList<LoadedPlugin> m_plugins;
+    QVariantMap m_pluginConfigs;
     QVariantList m_roster;
     bool m_discovered = false;
 };

@@ -1,15 +1,19 @@
 #include <LayerShellQt/Shell>
+#include <QApplication>
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMenu>
 #include <QProcess>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QStandardPaths>
+#include <QSystemTrayIcon>
 #include <QUrl>
 
 #include <cstring>
@@ -21,12 +25,84 @@
 #include "launcher.h"
 #include "pickerwindow.h"
 #include "queue.h"
+#include "settings.h"
 #include "singleinstance.h"
 #include "target.h"
 #include "urltools.h"
 #include "xdgactivation.h"
 
 namespace {
+
+void logPayload(const QVariantMap &payload)
+{
+    qInfo().noquote()
+        << "luch payload:"
+        << QString::fromUtf8(
+               QJsonDocument(QJsonObject::fromVariantMap(payload))
+                   .toJson(QJsonDocument::Compact));
+}
+
+// `luch --daemon`: the minimal resident settings daemon — its whole
+// job is settings + tray; pickers stay short-lived and read settings
+// at startup.
+int runDaemon(int argc, char *argv[])
+{
+    // QApplication (not QGuiApplication): QSystemTrayIcon + QMenu are
+    // QWidget-based.
+    QApplication app(argc, argv);
+    QCoreApplication::setApplicationName(QStringLiteral("Luch"));
+    QCoreApplication::setOrganizationName(QStringLiteral("luch"));
+
+    Luch::Settings settings;
+    settings.save(); // daemon-owned: materialize (incl. one-time migration)
+
+    QSystemTrayIcon tray(QIcon::fromTheme(QStringLiteral("luch")));
+    tray.setToolTip(QStringLiteral("luch — link router settings"));
+
+    QMenu menu;
+    QAction *const dissectionAction =
+        menu.addAction(QObject::tr("Always show bottom panel"));
+    dissectionAction->setCheckable(true);
+    dissectionAction->setChecked(settings.showDissection());
+    QObject::connect(dissectionAction, &QAction::toggled, &settings,
+                     &Luch::Settings::setShowDissection);
+
+    QAction *const logAction = menu.addAction(QObject::tr("Log payload"));
+    logAction->setCheckable(true);
+    logAction->setChecked(settings.logPayload());
+    QObject::connect(logAction, &QAction::toggled, &settings,
+                     &Luch::Settings::setLogPayload);
+
+    menu.addSeparator();
+    QAction *const quitAction = menu.addAction(QObject::tr("Quit"));
+    QObject::connect(quitAction, &QAction::triggered, &app,
+                     &QCoreApplication::quit);
+
+    tray.setContextMenu(&menu);
+    tray.show();
+    return app.exec();
+}
+
+// `luch --settings`: the settings UI directly — the escape hatch for
+// watcher-less environments (stock GNOME, test VMs).
+int runSettings(int argc, char *argv[])
+{
+    QGuiApplication app(argc, argv);
+    QCoreApplication::setApplicationName(QStringLiteral("Luch"));
+    QCoreApplication::setOrganizationName(QStringLiteral("luch"));
+
+    Luch::Settings settings;
+
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("settings"),
+                                             &settings);
+    engine.load(QUrl(QStringLiteral("qrc:/Luch/ui/SettingsWindow.qml")));
+    if (engine.rootObjects().isEmpty()) {
+        qCritical() << "luch: settings UI failed to load";
+        return 1;
+    }
+    return app.exec();
+}
 
 int setDefaultHandler()
 {
@@ -79,9 +155,14 @@ int inspectTarget(int argc, char *argv[], const QString &argument)
         return 2;
     }
 
+    Luch::Settings settings;
     Luch::AugmentationPipeline pipeline;
+    pipeline.setPluginConfigs(settings.pluginConfigs());
+    pipeline.setMaxHops(settings.maxHops());
     pipeline.discoverAndLoad();
     const QVariantMap payload = pipeline.run(target.toMap());
+    if (settings.logPayload())
+        logPayload(payload);
 
     const QJsonObject root{
         {QStringLiteral("roster"),
@@ -100,6 +181,10 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; ++i) {
         if (qstrcmp(argv[i], "--set-default") == 0)
             return setDefaultHandler();
+        if (qstrcmp(argv[i], "--daemon") == 0)
+            return runDaemon(argc, argv);
+        if (qstrcmp(argv[i], "--settings") == 0)
+            return runSettings(argc, argv);
         if (qstrcmp(argv[i], "--inspect") == 0) {
             if (i + 1 >= argc) {
                 qCritical().noquote()
@@ -166,10 +251,17 @@ const QString priorShellIntegration =
         return 0; // handed off to the running instance
 
     Luch::Config config;
+    // Pickers read the unified settings at startup (daemon-owned;
+    // they never write).
+    Luch::Settings settings;
     Luch::AugmentationPipeline pipeline;
+    pipeline.setPluginConfigs(settings.pluginConfigs());
+    pipeline.setMaxHops(settings.maxHops());
     pipeline.discoverAndLoad();
 
     target.pluginData = pipeline.run(target.toMap());
+    if (settings.logPayload())
+        logPayload(target.pluginData);
     Luch::TargetQueue queue;
     queue.append(target);
 
@@ -189,11 +281,13 @@ const QString priorShellIntegration =
     // dropped — they must not kill the owner. Forwarded targets run the
     // augmentation pipeline too, before they join the queue.
     QObject::connect(&single, &Luch::SingleInstance::targetArrived, &app,
-                     [&queue, &pipeline](const QString &raw) {
+                     [&queue, &pipeline, &settings](const QString &raw) {
                          Luch::Target t;
                          QString err;
                          if (Luch::Target::parse(raw, t, &err)) {
                              t.pluginData = pipeline.run(t.toMap());
+                             if (settings.logPayload())
+                                 logPayload(t.pluginData);
                              queue.append(t);
                          } else {
                              qWarning().noquote() << err;
@@ -219,6 +313,8 @@ const QString priorShellIntegration =
     Luch::UrlTools urlTools;
     engine.rootContext()->setContextProperty(QStringLiteral("urlTools"),
                                              &urlTools);
+    engine.rootContext()->setContextProperty(QStringLiteral("settings"),
+                                             &settings);
     engine.load(QUrl(QStringLiteral("qrc:/Luch/ui/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
         qCritical() << "luch: QML root failed to load";

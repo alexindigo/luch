@@ -22,6 +22,10 @@ public:
     explicit Launcher(QObject *parent = nullptr);
 
     void setTarget(const Target &target);
+    // The presented URL (variant selection) replaces the raw target in
+    // %u/%U expansion and transports — launch is always "what you
+    // see". Empty = fall back to the raw target form.
+    Q_INVOKABLE void setPresentedUrl(const QString &url);
     void setShellIntegrationRestore(bool wasSet, const QString &value);
     void setActivationSource(XdgActivationTokenRequester *requester,
                              QWindow *window);
@@ -44,6 +48,7 @@ private:
     QProcessEnvironment childEnvironment(const QString &token) const;
 
     Target m_target;
+    QString m_presentedUrl;
     bool m_shellIntegrationWasSet = false;
     QString m_shellIntegrationValue;
     XdgActivationTokenRequester *m_activationRequester = nullptr;

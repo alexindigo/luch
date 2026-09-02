@@ -26,13 +26,16 @@ Window {
         + Math.max(0, visibleCells - 1) * rowSpacing
     readonly property real widthCap: widthCapFactor * Screen.width
     readonly property bool lightsVisible: lightsStrip.chain.length > 0
+    readonly property bool pillsVisible: payloadVariants.length > 1
 
     width: chrome + (queued ? 2 * satelliteOverhang : 0)
            + Math.ceil(Math.max(stripWidth,
                                 Math.min(footerBar.naturalWidth + 2,
                                          widthCap),
                                 lightsVisible ? lightsStrip.implicitWidth
-                                              : 0))
+                                              : 0)
+                        + (pillsVisible ? variantPills.implicitWidth
+                                        + 12 : 0))
     height: chrome + (queued ? 2 * badgeOverhang : 0) + cellHeight
             + (lightsVisible ? lightsStrip.implicitHeight + 10 : 0)
             + (footerBar.height > 0 ? footerSpacing + footerBar.height : 0)
@@ -49,21 +52,47 @@ Window {
     property int selectedIndex: 0
     property string launchError: ""
 
-    // The one URL the main panel knows: the effective URL from the
-    // payload (trace tail), falling back to the raw target. Footer,
-    // launch and copy all consume this.
-    property string presentedUrl: ""
+    // The one URL the main panel knows. Variants = the original plus
+    // every distinct URL the chain produced; the last one auto-selects
+    // as it materializes. Footer, launch and copy all consume the
+    // presented URL.
+    property var payloadVariants: []
+    property int selectedVariant: 0
     // Current payload trace entries — feed the lights subpanel.
     property var payloadTrace: []
+    readonly property string presentedUrl: payloadVariants.length > 0
+        ? String(payloadVariants[Math.max(0, Math.min(
+              selectedVariant, payloadVariants.length - 1))])
+        : queue.currentRaw
 
     function refreshFromPayload() {
         const payload = queue.currentPayload
-        presentedUrl = (payload && payload.url)
-                       ? String(payload.url) : queue.currentRaw
+        const list = []
+        if (payload && payload.original && payload.original.url)
+            list.push(String(payload.original.url))
+        if (payload && payload.trace) {
+            for (let i = 0; i < payload.trace.length; i++) {
+                const data = payload.trace[i].data
+                const url = data ? data.url : ""
+                if (url && list.indexOf(String(url)) === -1)
+                    list.push(String(url))
+            }
+        }
+        if (list.length > root._previousVariantCount)
+            selectedVariant = list.length - 1 // last auto-selected
+        root._previousVariantCount = list.length
+        payloadVariants = list
         payloadTrace = (payload && payload.trace) ? payload.trace : []
     }
 
-    Component.onCompleted: refreshFromPayload()
+    property int _previousVariantCount: 0
+
+    onPresentedUrlChanged: launcher.setPresentedUrl(presentedUrl)
+
+    Component.onCompleted: {
+        refreshFromPayload()
+        launcher.setPresentedUrl(presentedUrl)
+    }
 
     function launchAt(index: int) {
         const exec = browserRegistry.execAt(index)
@@ -78,6 +107,7 @@ Window {
 
         function onCurrentChanged() {
             root.selectedIndex = 0
+            root._previousVariantCount = 0
             lightsStrip.reset()
             root.refreshFromPayload()
         }
@@ -121,10 +151,14 @@ Window {
         border.color: "#26f2f4f6"
 
         Column {
+            id: contentColumn
+
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.margins: root.contentPad
+            anchors.leftMargin: root.contentPad
+                + (root.pillsVisible ? variantPills.width + 12 : 0)
             spacing: 10
 
             LightsStrip {
@@ -218,6 +252,19 @@ Window {
                     }
                 }
             }
+        }
+
+        VariantPills {
+            id: variantPills
+
+            visible: root.pillsVisible
+            anchors.left: parent.left
+            anchors.leftMargin: root.contentPad
+            anchors.verticalCenter: parent.verticalCenter
+            variants: root.payloadVariants
+            selection: root.selectedVariant
+
+            onSelectRequested: (index) => root.selectedVariant = index
         }
     }
 

@@ -72,6 +72,7 @@ qt_add_qml_module(luch
         ui/Main.qml
         ui/QueueChrome.qml
         ui/TargetFooter.qml
+        ui/VariantPills.qml
         ui/XdgIconLoader.qml
         ui/decompose.js
 )

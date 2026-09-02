@@ -18,15 +18,17 @@ namespace Luch {
 
 namespace {
 
-QString targetForm(const Target &target)
+QString targetForm(const Target &target, const QString &presentedUrl)
 {
+    if (!presentedUrl.isEmpty())
+        return presentedUrl;
     return target.kind == Target::HtmlFile && !target.urlForm.isEmpty()
                ? target.urlForm
                : target.raw;
 }
 
 QString expandFieldCodes(const QString &token, const Target &target,
-                         bool &empty)
+                         const QString &presentedUrl, bool &empty)
 {
     QString out;
     out.reserve(token.size());
@@ -40,7 +42,7 @@ QString expandFieldCodes(const QString &token, const Target &target,
         switch (code.unicode()) {
         case 'u':
         case 'U':
-            out += targetForm(target);
+            out += targetForm(target, presentedUrl);
             break;
         case 'f':
         case 'F':
@@ -85,6 +87,11 @@ Launcher::Launcher(QObject *parent)
 void Launcher::setTarget(const Target &target)
 {
     m_target = target;
+}
+
+void Launcher::setPresentedUrl(const QString &url)
+{
+    m_presentedUrl = url;
 }
 
 void Launcher::setShellIntegrationRestore(bool wasSet, const QString &value)
@@ -149,7 +156,8 @@ bool Launcher::launch(const QString &execLine, const QString &desktopId)
     expanded.reserve(tokens.size());
     for (const QString &token : tokens) {
         bool empty = false;
-        const QString arg = expandFieldCodes(token, m_target, empty);
+        const QString arg =
+            expandFieldCodes(token, m_target, m_presentedUrl, empty);
         if (!empty)
             expanded.append(arg);
     }
@@ -197,7 +205,7 @@ bool Launcher::tryTransports(const QString &token)
     if (m_pendingDesktopId.isEmpty())
         return false;
 
-    const QString url = targetForm(m_target);
+    const QString url = targetForm(m_target, m_presentedUrl);
 
     QString mozillaApp;
     static const char *mozillaFamily[] = {"firefox", "thunderbird",

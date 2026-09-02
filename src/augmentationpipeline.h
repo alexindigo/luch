@@ -65,6 +65,10 @@ Q_SIGNALS:
     // slice}; the consumer (queue.patchSlice) appends it as the
     // plugin's next trace entry.
     void sliceLanded(const QString &id, const QVariantMap &slice);
+    // An async (inet) stage was dispatched — its slice has not landed
+    // yet. Drives the lights' "working" shimmer (the payload itself
+    // stays slice-presence-only, per the settled async contract).
+    void stageDispatched(const QString &id);
 
 private:
     enum class Phase { Unwrap = 0, Clean = 1, Detect = 2 };

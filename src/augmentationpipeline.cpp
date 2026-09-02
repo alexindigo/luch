@@ -405,6 +405,7 @@ void AugmentationPipeline::dispatchInetHop(
     state->token = token;
     state->async = true; // payload snapshot is out; slices land by signal
     m_activeChains.insert(token, state);
+    Q_EMIT stageDispatched(p.id);
 
     const QVariantMap chainState = chainStateMap(state);
     const QVariantMap priorSlices = priorSlicesFrom(state->trace);

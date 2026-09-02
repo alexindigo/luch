@@ -68,6 +68,7 @@ qt_add_qml_module(luch
     VERSION 1.0
     QML_FILES
         ui/BrowserDelegate.qml
+        ui/LightsStrip.qml
         ui/Main.qml
         ui/QueueChrome.qml
         ui/TargetFooter.qml

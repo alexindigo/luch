@@ -213,6 +213,8 @@ const QString priorShellIntegration =
                                              &launcher);
     engine.rootContext()->setContextProperty(QStringLiteral("pluginRoster"),
                                              pipeline.roster());
+    engine.rootContext()->setContextProperty(QStringLiteral("pipeline"),
+                                             &pipeline);
     engine.load(QUrl(QStringLiteral("qrc:/Luch/ui/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
         qCritical() << "luch: QML root failed to load";

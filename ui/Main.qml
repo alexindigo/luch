@@ -25,12 +25,16 @@ Window {
     readonly property int stripWidth: visibleCells * cellWidth
         + Math.max(0, visibleCells - 1) * rowSpacing
     readonly property real widthCap: widthCapFactor * Screen.width
+    readonly property bool lightsVisible: lightsStrip.chain.length > 0
 
     width: chrome + (queued ? 2 * satelliteOverhang : 0)
            + Math.ceil(Math.max(stripWidth,
                                 Math.min(footerBar.naturalWidth + 2,
-                                         widthCap)))
+                                         widthCap),
+                                lightsVisible ? lightsStrip.implicitWidth
+                                              : 0))
     height: chrome + (queued ? 2 * badgeOverhang : 0) + cellHeight
+            + (lightsVisible ? lightsStrip.implicitHeight + 10 : 0)
             + (footerBar.height > 0 ? footerSpacing + footerBar.height : 0)
             + (launchError !== "" ? errorLabel.height + 10 : 0)
             + (queued ? 10 + dotsRowHeight : 0)
@@ -49,14 +53,17 @@ Window {
     // payload (trace tail), falling back to the raw target. Footer,
     // launch and copy all consume this.
     property string presentedUrl: ""
+    // Current payload trace entries — feed the lights subpanel.
+    property var payloadTrace: []
 
-    function refreshPresentedUrl() {
+    function refreshFromPayload() {
         const payload = queue.currentPayload
         presentedUrl = (payload && payload.url)
                        ? String(payload.url) : queue.currentRaw
+        payloadTrace = (payload && payload.trace) ? payload.trace : []
     }
 
-    Component.onCompleted: refreshPresentedUrl()
+    Component.onCompleted: refreshFromPayload()
 
     function launchAt(index: int) {
         const exec = browserRegistry.execAt(index)
@@ -71,11 +78,20 @@ Window {
 
         function onCurrentChanged() {
             root.selectedIndex = 0
-            root.refreshPresentedUrl()
+            lightsStrip.reset()
+            root.refreshFromPayload()
         }
 
         function onPayloadChanged() {
-            root.refreshPresentedUrl()
+            root.refreshFromPayload()
+        }
+    }
+
+    Connections {
+        target: pipeline
+
+        function onStageDispatched(id) {
+            lightsStrip.noteDispatch(id)
         }
     }
 
@@ -110,6 +126,14 @@ Window {
             anchors.top: parent.top
             anchors.margins: root.contentPad
             spacing: 10
+
+            LightsStrip {
+                id: lightsStrip
+
+                visible: root.lightsVisible
+                roster: pluginRoster
+                trace: root.payloadTrace
+            }
 
             ListView {
                 id: browserView

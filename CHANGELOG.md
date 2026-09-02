@@ -1,5 +1,46 @@
 # Changelog
 
+## [Unreleased]
+
+### Feature
+
+The payload has a consumer: the picker becomes three zones. A top
+lights subpanel shows one signal light per chain plugin (dim queued,
+shimmer working, green noop, amber found/changed, red dangerous, with a
+trace-driven pulse per landing entry and an "online" marker on
+declared-online plugins). Left-edge radio pills materialize one per URL
+variant the chain produced — the last auto-selects, and footer, launch
+and copy all follow the presented URL. A bottom dissection panel
+exposes the URL anatomy (scheme, host, eTLD+1 domain, port, path,
+query, fragment), hidden by default, auto-showing on a red verdict with
+a "flagged by {source}" warning line — launch is never gated.
+
+Underneath, execution changed from priority fan-out to a sequential
+chain over the system-owned phases Unwrap → Clean → Detect: each stage
+receives the working URL, runs to fixpoint (maxHops cap), and every
+iteration lands in the payload's `trace`; the payload gains main-level
+`url` and `detected` fields. The `urlclean` monolith split into
+`debounce` (unwrap) and `brave-clean-url` (clean) stage plugins with
+identical battery behavior. Two shared workers take plugins off the UI
+thread: the offline worker runs under a per-thread seccomp network
+sandbox (AF_UNIX allowed, AF_INET/AF_INET6 fail at the syscall level),
+the inet worker is the event-loop home for declared-online plugins —
+which are disabled by default; nothing phones home until you opt in. A
+minimal settings daemon (`luch --daemon`) owns the unified
+`~/.config/luch/settings.json` and a tray menu (`luch --settings` opens
+the UI directly); pickers read settings at startup, and legacy
+per-plugin config files migrate once automatically.
+
+- feat: chain model — working-URL state, trace, detected, main-level url, phase ordering (`60c2ea2`)
+- feat: split urlclean into debounce and brave-clean-url stage plugins (`39f87e0`)
+- feat: offline/inet workers with seccomp network sandbox (`f294a97`)
+- feat: QML-owned URL decomposition and presented-URL footer (`5522b8c`)
+- feat: top lights subpanel with per-plugin signal lights (`43e4a85`)
+- feat: variant radio pills and variant-agnostic main panel (`81b8b8c`)
+- feat: bottom dissection panel with contextual visibility (`83dbf31`)
+- feat: minimal settings daemon with tray and panel preferences (`6db1d37`)
+- feat: accessibility annotations for payload UI (`c3e0d29`)
+
 ## [0.2.0] — 2026-08-31
 
 ### Feature

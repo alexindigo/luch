@@ -22,9 +22,10 @@ Wayland-only (niri, mangowc, KDE, any compositor with
 
 ## Build
 
-Dependencies: Qt6 (Core, Gui, Quick/Declarative, WaylandClient),
+Dependencies: Qt6 (Core, Gui, Quick/Declarative, Widgets, WaylandClient),
 `layer-shell-qt` (Arch: `extra/layer-shell-qt`), `wayland-protocols`,
 `xdgiconqml` (the `XdgIcon` QML module that resolves browser icons),
+`libseccomp` (the offline plugin worker's network sandbox),
 `wayland-scanner`, and a C++20 compiler + CMake ≥ 3.21.
 
 ```sh
@@ -58,6 +59,8 @@ Luch is never registered at install time — only when you ask.
 ```sh
 luch <url|html-file>   # show the picker for a URL or local HTML file
 luch --inspect <url>   # print plugin roster + payload as JSON (no GUI)
+luch --daemon          # resident settings daemon (owns settings.json + tray)
+luch --settings        # open the settings UI directly (no daemon needed)
 luch --set-default
 luch --version
 ```
@@ -159,38 +162,117 @@ whole queue.
 ## Plugins
 
 Luch has a plugin architecture: runtime-loadable `.so` plugins
-(`QPluginLoader`) that augment a per-target **payload** — data derived
-from the original target, exposed as
-`{"original": …, "plugins": {<id>: {…}}}`. The target stays
-original-canonical: plugins only add data; launch and copy always use
-the original.
+(`QPluginLoader`) that run as a **sequential chain** over a
+system-owned phase ladder — **Unwrap → Clean → Detect** — and build a
+per-target **payload**:
+
+```json
+{
+  "original": {"kind": "url", "url": "…", "raw": "…"},
+  "url": "<effective URL — last trace entry that produced one>",
+  "detected": [{"plugin": "phishing-check", "verdict": "malicious", "source": "hagezi-tif"}],
+  "trace": [
+    {"plugin": "debounce", "iteration": 1, "data": {"url": "https://example.com/?utm_medium=social&foo=1", "debouncedFrom": "…"}},
+    {"plugin": "brave-clean-url", "iteration": 1, "data": {"url": "https://example.com/?foo=1", "strippedParams": ["utm_medium"]}}
+  ]
+}
+```
+
+- Each stage receives **chain state** `{kind, url (the current working
+  URL), raw, original}` and runs to **fixpoint**: its own output is fed
+  back until it noops or the `maxHops` cap (default 10) stops
+  adversarial ping-pong. Every iteration is a trace entry — the full
+  redirect lineage stays inspectable.
+- `priorSlices` (earlier slices by id) is a read-only side channel for
+  non-URL data; no plugin ever hardcodes whose `"url"` to read.
+- The only reserved key inside a slice is `"url"` — present only when
+  the plugin changed the working URL. All other keys are plugin-owned;
+  the reserved set only grows additively (never redefines a key).
+- Manifests declare `"phase"` (`unwrap` | `clean` | `detect` — closed
+  set, unknown → invalid) and `"inet"` (capability declaration).
+  There is no `"priority"`: position is decided by the phase ladder —
+  within Unwrap offline before online, elsewhere by id.
 
 A plugin ships as a pair: `<id>.so` plus a sidecar manifest `<id>.json`
-(`{"id", "title", "description", "priority"}`). Discovery order (first
-id wins, so a userland pair replaces a built-in as a unit):
+(`{"id", "title", "description", "phase", "inet"}`). Discovery order
+(first id wins, so a userland pair replaces a built-in as a unit):
 
 1. `$LUCH_PLUGINS_DIR` (if set)
 2. `~/.local/share/luch/plugins/`
 3. the installed plugins dir (`<libdir>/luch/plugins`)
 
-An optional `~/.config/luch/plugins/<id>.json` holds per-plugin settings
-(`{"enabled": false}` disables; absent file = enabled, empty settings).
+### Workers and the network sandbox
 
-Payload contract: a plugin's slice lives under its id; the only reserved
-key inside a slice is `"url"` — the plugin's outcome URL, present only
-when it actually produces one. All other keys are plugin-owned, slice
-presence itself carries no meaning, and the reserved set only grows
-additively (never redefines a key).
+Two shared worker threads run every plugin stage off the UI thread:
 
-### urlclean (bundled)
+- **Offline worker** — a `QThread` with a per-thread seccomp filter:
+  `socket()` is allowed for `AF_UNIX` (D-Bus, local IPC) and fails for
+  `AF_INET`/`AF_INET6` — an offline plugin provably cannot make an
+  outside request at the syscall level. All `inet: false` plugins run
+  here (object affinity, sequential dispatch).
+- **Inet worker** — unfiltered event loop for `inet: true` plugins.
+  Online plugins never block: their stages dispatch queued and the
+  slice lands later via `patchSlice`; slice presence *is* the stage
+  state (a dispatched stage with no slice yet is working — its light
+  shimmers). Results arriving after launch/copy/dismiss are dropped.
 
-The first plugin is a Brave-parity URL cleaner: redirect unwrapping
-(debounce), query filtering (including the conditional `mkt_tok`/`h_*`
-trackers) and the clean-urls ruleset, driven by Brave's own vendored
-lists (`assets/lists/`, MPL-2.0) plus a public-suffix-list snapshot for
-the debounce failsafes. It emits strip stats for every http(s) target
-and adds `"url"` (+ `"debouncedFrom"`) when cleaning produced a
-different URL. Refresh the lists with `tools/update-lists.sh`.
+**Privacy-first**: declared-online (`inet: true`) plugins are disabled
+by default — nothing phones home until you opt in per plugin in
+settings. User configuration may only *downgrade* (force a declared
+online plugin onto the blocked worker); nothing lets a plugin escalate
+itself online. This is a *network* sandbox only — no crash isolation
+yet.
+
+### Settings
+
+`~/.config/luch/settings.json`, owned by the minimal settings daemon
+(`luch --daemon`, tray icon with toggles):
+
+```json
+{
+  "ui": { "showDissection": false },
+  "maxHops": 10,
+  "logPayload": false,
+  "plugins": { "<id>": { "enabled": true, "inet": false } }
+}
+```
+
+Pickers are short-lived and read settings at startup. `luch --settings`
+opens the settings UI directly. The legacy per-plugin
+`~/.config/luch/plugins/<id>.json` files are migrated once
+automatically. `config.json` stays purely user-authored.
+
+### Bundled plugins
+
+- **`debounce`** (unwrap, offline) — rule-based redirect extraction
+  from the URL itself (Brave's debounce list); emits `url` +
+  `debouncedFrom` when unwrapped and a `shortener` flag when the host
+  matches a wrapper pattern (the future online fallback's trigger).
+- **`brave-clean-url`** (clean, offline) — query filtering (including
+  the conditional `mkt_tok`/`h_*` trackers) and the clean-urls ruleset;
+  emits `url` + `strippedCount`/`strippedParams` when stripping
+  produced a different URL.
+
+Both are driven by Brave's own vendored lists (`assets/lists/`,
+MPL-2.0) plus a public-suffix-list snapshot for the debounce failsafes.
+Refresh the lists with `tools/update-lists.sh`.
+
+### The picker UI
+
+- **Top lights subpanel** — one cluster per chain plugin, in chain
+  order: dim (queued), shimmer (working), green (noop), amber
+  (found/changed), red (dangerous); every trace entry pulses the bulb,
+  the resting color is the final outcome; declared-online plugins carry
+  an "online" marker.
+- **Left-edge variant pills** — one radio pill per URL variant the
+  chain produced (original always present); the last variant
+  auto-selects as pills materialize, and the main panel only ever knows
+  the presented URL: footer, launch and copy all follow the selection.
+- **Bottom dissection panel** — URL anatomy (scheme / host / domain
+  via eTLD+1 / port / path / query / fragment). Hidden by default;
+  auto-shows on a red verdict; pinnable via settings. A red verdict
+  also shows a "flagged by {source}" warning line. No launch gating —
+  the danger is loud, not blocking.
 
 Third-party plugins: build against the installed
 `<includedir>/luch/luchaugmenter.h`, then drop the `.so` + manifest pair

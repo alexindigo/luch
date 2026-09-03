@@ -25,8 +25,16 @@ Item {
         || (parts.scheme === "http://" && parts.port === 80)
     readonly property int fontPx: 11
     readonly property int rowHeight: 18
+    readonly property int rowGap: 12     // label→value column gap
+    readonly property int labelCol: 56   // right-aligned label column
+    readonly property int rowPad: 6
+    // Content width when the parent gives us the drawer's inner width —
+    // the table fills the drawer horizontally (no void).
+    readonly property real contentWidth: width - 2 * rowPad
 
-    implicitWidth: rows.implicitWidth
+    // The drawer is geometry-driven and never sizes from this; the
+    // constant just names a sensible natural width for standalone use.
+    implicitWidth: 2 * rowPad + labelCol + rowGap + 340
     implicitHeight: rows.implicitHeight + 8
 
     Accessible.role: Accessible.StaticText
@@ -45,7 +53,9 @@ Item {
     Column {
         id: rows
 
-        anchors.centerIn: parent
+        anchors.left: parent.left
+        anchors.leftMargin: dissection.rowPad
+        anchors.verticalCenter: parent.verticalCenter
         spacing: 2
 
         Repeater {
@@ -78,10 +88,10 @@ Item {
 
                 required property var modelData
 
-                spacing: 10
+                spacing: dissection.rowGap
 
                 Text {
-                    width: 56
+                    width: dissection.labelCol
                     height: dissection.rowHeight
                     text: row.modelData.label
                     color: "#64748b"
@@ -92,6 +102,8 @@ Item {
                 }
 
                 Text {
+                    width: dissection.contentWidth - dissection.labelCol
+                           - dissection.rowGap
                     height: dissection.rowHeight
                     text: row.modelData.value !== ""
                           ? row.modelData.value : "—"
@@ -100,7 +112,6 @@ Item {
                     font.pixelSize: dissection.fontPx
                     font.weight: Font.Light
                     elide: Text.ElideMiddle
-                    width: Math.min(implicitWidth, 340)
                 }
             }
         }

@@ -26,10 +26,14 @@ Item {
 
     readonly property real lightSize: 8
     readonly property real labelGap: 5
-    readonly property real clusterGap: 16
     readonly property int fontPx: 10
+    // Conservative natural slot width — used for implicit sizing when
+    // the parent lets us choose our own width.
+    readonly property real slotMin: 96
 
-    implicitWidth: clusterRow.implicitWidth
+    // Clusters spread evenly across the given width (equal slots); the
+    // implicit width covers every slot at its natural minimum.
+    implicitWidth: chain.length * slotMin
     implicitHeight: clusterRow.implicitHeight
 
     Accessible.role: Accessible.Grouping
@@ -105,8 +109,9 @@ Item {
     Row {
         id: clusterRow
 
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: lightsStrip.clusterGap
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
 
         Repeater {
             id: clusterRepeater
@@ -142,7 +147,7 @@ Item {
                     lastSeen = entryCount
                 }
 
-                width: Math.max(labelText.width, lightRow.width)
+                width: clusterRow.width / (clusterRepeater.count || 1)
                 height: lightRow.height + labelText.height
 
                 Row {

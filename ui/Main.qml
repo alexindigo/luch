@@ -13,14 +13,23 @@ Window {
     readonly property int footerSpacing: 10
     readonly property real widthCapFactor: 0.8
 
-    // Drawer/subpanel geometry: drawers sit behind the elevated main
-    // panel, inset per the mock, peeking above/below its edges; the
-    // main panel's shadow carries the depth (not color contrast).
+    // Drawer/subpanel geometry (physics-mapped, binding per the plan):
+    // a drawer is narrower than its cabinet and sticks out from behind
+    // it — the cabinet overlaps the drawer's inner edge and shadows it;
+    // contents live fully inside the visible (peeking) part.
     readonly property int shadowPad: 28     // window room for the shadow
-    readonly property int drawerInset: 16   // drawers narrower than main
-    readonly property int drawerOverlap: 4  // slides behind the main edge
-    readonly property int drawerVPad: 8
+    readonly property int drawerInset: 28   // drawers strictly narrower
+    readonly property int drawerOverlap: 14 // cabinet overlaps inner edge
+    readonly property int drawerVPad: 10    // content padding in drawer
+    readonly property int drawerHPad: 14
 
+    // Visible drawer portions above/below the main panel's edges — the
+    // overlap rides behind the cabinet, never eating content budget.
+    readonly property real lightsPeek: lightsVisible
+        ? lightsStrip.implicitHeight + 2 * drawerVPad : 0
+    readonly property real dissectionPeek: dissectionVisible
+        ? dissectionPanel.implicitHeight + 2 * drawerVPad
+        : 0
     // Queue satellites (locked: only when more than one target):
     readonly property int satelliteOverhang: 14
     readonly property int badgeOverhang: 14
@@ -37,20 +46,14 @@ Window {
     readonly property real widthCap: widthCapFactor * Screen.width
     readonly property bool lightsVisible: lightsStrip.chain.length > 0
 
-    // Visible drawer portions above/below the main panel's edges.
-    readonly property real lightsPeek: lightsVisible
-        ? lightsStrip.implicitHeight + 2 * drawerVPad - drawerOverlap : 0
-    readonly property real dissectionPeek: dissectionVisible
-        ? dissectionPanel.implicitHeight + 2 * drawerVPad - drawerOverlap
-        : 0
-
     width: chrome + (queued ? 2 * satelliteOverhang : 0)
            + Math.ceil(Math.max(stripWidth,
                                 Math.min(footerBar.naturalWidth + 2,
                                          widthCap),
                                 lightsVisible
                                     ? lightsStrip.implicitWidth
-                                      + 2 * drawerInset : 0))
+                                      + 2 * (drawerInset + drawerHPad)
+                                      : 0))
     height: chrome + (queued ? 2 * badgeOverhang : 0) + cellHeight
             + (footerBar.height > 0 ? footerSpacing + footerBar.height : 0)
             + (launchError !== "" ? errorLabel.height + 10 : 0)
@@ -164,17 +167,21 @@ Window {
         anchors.fill: parent
         anchors.margins: root.shadowPad
 
-        // Lights drawer — behind the main panel, inset, peeking above
-        // its top edge. Statically open whenever plugins are present.
+        // Lights drawer — narrower than the cabinet, sliding out from
+        // behind its top edge; the cabinet overlaps the drawer's inner
+        // edge and shadows it. Contents sit fully inside the visible
+        // part (labels clear of the cabinet edge).
         Rectangle {
             id: lightsDrawer
 
             visible: root.lightsVisible
             anchors.left: surface.left
             anchors.right: surface.right
+            anchors.leftMargin: root.drawerInset
+            anchors.rightMargin: root.drawerInset
             anchors.bottom: surface.top
             anchors.bottomMargin: -root.drawerOverlap
-            height: lightsStrip.implicitHeight + 2 * root.drawerVPad
+            height: root.lightsPeek + root.drawerOverlap
             radius: 12
             // Tonal family of the main surface, a hair darker for
             // recess — the separation itself is the main panel's
@@ -186,23 +193,31 @@ Window {
             LightsStrip {
                 id: lightsStrip
 
-                anchors.centerIn: parent
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.leftMargin: root.drawerHPad
+                anchors.rightMargin: root.drawerHPad
+                anchors.topMargin: root.drawerVPad
                 roster: pluginRoster
                 trace: root.payloadTrace
             }
         }
 
-        // Dissection drawer — behind, inset, peeking below the bottom
-        // edge. Hidden by default; auto-shows on red; pinnable.
+        // Dissection drawer — same physics at the bottom edge: narrower,
+        // from behind, cabinet overlapping its inner edge; the anatomy
+        // table fills the drawer (no void).
         Rectangle {
             id: dissectionDrawer
 
             visible: root.dissectionVisible
             anchors.left: surface.left
             anchors.right: surface.right
+            anchors.leftMargin: root.drawerInset
+            anchors.rightMargin: root.drawerInset
             anchors.top: surface.bottom
             anchors.topMargin: -root.drawerOverlap
-            height: dissectionPanel.implicitHeight + 2 * root.drawerVPad
+            height: root.dissectionPeek + root.drawerOverlap
             radius: 12
             color: "#f016233a"
             border.width: 1
@@ -211,8 +226,12 @@ Window {
             DissectionPanel {
                 id: dissectionPanel
 
-                anchors.centerIn: parent
-                width: parent.width - 2 * root.drawerVPad
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.leftMargin: root.drawerHPad
+                anchors.rightMargin: root.drawerHPad
+                anchors.bottomMargin: root.drawerVPad
                 presentedUrl: root.presentedUrl
                 pinned: settings.showDissection
             }

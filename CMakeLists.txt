@@ -77,9 +77,7 @@ qt_add_qml_module(luch
         ui/LightsStrip.qml
         ui/Main.qml
         ui/QueueChrome.qml
-        ui/SettingsWindow.qml
         ui/TargetFooter.qml
-        ui/VariantPills.qml
         ui/XdgIconLoader.qml
         ui/decompose.js
 )

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 
 Window {
     id: root
@@ -12,6 +13,14 @@ Window {
     readonly property int footerSpacing: 10
     readonly property real widthCapFactor: 0.8
 
+    // Drawer/subpanel geometry: drawers sit behind the elevated main
+    // panel, inset per the mock, peeking above/below its edges; the
+    // main panel's shadow carries the depth (not color contrast).
+    readonly property int shadowPad: 28     // window room for the shadow
+    readonly property int drawerInset: 16   // drawers narrower than main
+    readonly property int drawerOverlap: 4  // slides behind the main edge
+    readonly property int drawerVPad: 8
+
     // Queue satellites (locked: only when more than one target):
     readonly property int satelliteOverhang: 14
     readonly property int badgeOverhang: 14
@@ -21,30 +30,34 @@ Window {
 
     readonly property int visibleCells: Math.max(
         1, Math.min(browserView.count, maxVisible))
-    readonly property int chrome: surfaceMargin * 2 + contentPad * 2
+    readonly property int chrome: shadowPad * 2 + surfaceMargin * 2
+        + contentPad * 2
     readonly property int stripWidth: visibleCells * cellWidth
         + Math.max(0, visibleCells - 1) * rowSpacing
     readonly property real widthCap: widthCapFactor * Screen.width
     readonly property bool lightsVisible: lightsStrip.chain.length > 0
-    readonly property bool pillsVisible: payloadVariants.length > 1
+
+    // Visible drawer portions above/below the main panel's edges.
+    readonly property real lightsPeek: lightsVisible
+        ? lightsStrip.implicitHeight + 2 * drawerVPad - drawerOverlap : 0
+    readonly property real dissectionPeek: dissectionVisible
+        ? dissectionPanel.implicitHeight + 2 * drawerVPad - drawerOverlap
+        : 0
 
     width: chrome + (queued ? 2 * satelliteOverhang : 0)
            + Math.ceil(Math.max(stripWidth,
                                 Math.min(footerBar.naturalWidth + 2,
                                          widthCap),
-                                lightsVisible ? lightsStrip.implicitWidth
-                                              : 0)
-                        + (pillsVisible ? variantPills.implicitWidth
-                                        + 12 : 0))
+                                lightsVisible
+                                    ? lightsStrip.implicitWidth
+                                      + 2 * drawerInset : 0))
     height: chrome + (queued ? 2 * badgeOverhang : 0) + cellHeight
-            + (lightsVisible ? lightsStrip.implicitHeight + 10 : 0)
             + (footerBar.height > 0 ? footerSpacing + footerBar.height : 0)
             + (launchError !== "" ? errorLabel.height + 10 : 0)
             + (redVerdict ? warningLine.height + 10 : 0)
-            + (dissectionVisible ? dissectionSpacing
-                                  + dissectionPanel.implicitHeight : 0)
             + (queued ? 10 + dotsRowHeight : 0)
-    readonly property int dissectionSpacing: 10
+            + (lightsVisible ? lightsPeek : 0)
+            + (dissectionVisible ? dissectionPeek : 0)
     readonly property bool dissectionVisible:
         dissectionPanel.pinned || redVerdict
     visible: false
@@ -58,12 +71,10 @@ Window {
     property int selectedIndex: 0
     property string launchError: ""
 
-    // The one URL the main panel knows. Variants = the original plus
-    // every distinct URL the chain produced; the last one auto-selects
-    // as it materializes. Footer, launch and copy all consume the
-    // presented URL.
-    property var payloadVariants: []
-    property int selectedVariant: 0
+    // The one URL the main panel knows: the final effective URL (the
+    // payload's trace tail; pills are hidden this round, so there is
+    // no variant selection). Footer, launch and copy consume it.
+    property string presentedUrl: ""
     // Current payload trace entries — feed the lights subpanel.
     property var payloadTrace: []
     // Worst Detect verdict for the current payload ("", "amber", "red")
@@ -72,28 +83,11 @@ Window {
     property string worstVerdict: ""
     property string verdictSource: ""
     readonly property bool redVerdict: worstVerdict === "red"
-    readonly property string presentedUrl: payloadVariants.length > 0
-        ? String(payloadVariants[Math.max(0, Math.min(
-              selectedVariant, payloadVariants.length - 1))])
-        : queue.currentRaw
 
     function refreshFromPayload() {
         const payload = queue.currentPayload
-        const list = []
-        if (payload && payload.original && payload.original.url)
-            list.push(String(payload.original.url))
-        if (payload && payload.trace) {
-            for (let i = 0; i < payload.trace.length; i++) {
-                const data = payload.trace[i].data
-                const url = data ? data.url : ""
-                if (url && list.indexOf(String(url)) === -1)
-                    list.push(String(url))
-            }
-        }
-        if (list.length > root._previousVariantCount)
-            selectedVariant = list.length - 1 // last auto-selected
-        root._previousVariantCount = list.length
-        payloadVariants = list
+        presentedUrl = (payload && payload.url)
+                       ? String(payload.url) : queue.currentRaw
         payloadTrace = (payload && payload.trace) ? payload.trace : []
         refreshVerdict(payload && payload.detected
                        ? payload.detected : [])
@@ -119,8 +113,6 @@ Window {
         }
     }
 
-    property int _previousVariantCount: 0
-
     onPresentedUrlChanged: launcher.setPresentedUrl(presentedUrl)
 
     Component.onCompleted: {
@@ -141,7 +133,6 @@ Window {
 
         function onCurrentChanged() {
             root.selectedIndex = 0
-            root._previousVariantCount = 0
             lightsStrip.reset()
             root.refreshFromPayload()
         }
@@ -167,162 +158,207 @@ Window {
         }
     }
 
-    Rectangle {
-        id: surface
+    Item {
+        id: stage
 
         anchors.fill: parent
-        anchors.leftMargin: root.surfaceMargin
-            + (root.queued ? root.satelliteOverhang : 0)
-        anchors.rightMargin: root.surfaceMargin
-            + (root.queued ? root.satelliteOverhang : 0)
-        anchors.topMargin: root.surfaceMargin
-            + (root.queued ? root.badgeOverhang : 0)
-        anchors.bottomMargin: root.surfaceMargin
-            + (root.queued ? root.badgeOverhang : 0)
-        radius: 16
-        color: "#e61e293b"
-        border.width: 1
-        border.color: "#26f2f4f6"
+        anchors.margins: root.shadowPad
 
-        Column {
-            id: contentColumn
+        // Lights drawer — behind the main panel, inset, peeking above
+        // its top edge. Statically open whenever plugins are present.
+        Rectangle {
+            id: lightsDrawer
 
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: root.contentPad
-            anchors.leftMargin: root.contentPad
-                + (root.pillsVisible ? variantPills.width + 12 : 0)
-            spacing: 10
+            visible: root.lightsVisible
+            anchors.left: surface.left
+            anchors.right: surface.right
+            anchors.bottom: surface.top
+            anchors.bottomMargin: -root.drawerOverlap
+            height: lightsStrip.implicitHeight + 2 * root.drawerVPad
+            radius: 12
+            // Tonal family of the main surface, a hair darker for
+            // recess — the separation itself is the main panel's
+            // shadow, not color contrast.
+            color: "#f016233a"
+            border.width: 1
+            border.color: "#1af2f4f6"
 
             LightsStrip {
                 id: lightsStrip
 
-                visible: root.lightsVisible
+                anchors.centerIn: parent
                 roster: pluginRoster
                 trace: root.payloadTrace
             }
+        }
 
-            ListView {
-                id: browserView
+        // Dissection drawer — behind, inset, peeking below the bottom
+        // edge. Hidden by default; auto-shows on red; pinnable.
+        Rectangle {
+            id: dissectionDrawer
 
-                width: Math.min(contentWidth, parent.width)
-                x: (parent.width - width) / 2
-                height: root.cellHeight
-                orientation: ListView.Horizontal
-                interactive: contentWidth > width
-                clip: true
-                model: browserRegistry
-                currentIndex: root.selectedIndex
-                spacing: root.rowSpacing
-                delegate: BrowserDelegate {}
-                Accessible.role: Accessible.List
-                Accessible.name: qsTr("Browsers")
-
-                onCountChanged: {
-                    if (root.selectedIndex >= count)
-                        root.selectedIndex = Math.max(0, count - 1)
-                }
-            }
-
-            Text {
-                id: emptyLabel
-
-                width: parent.width
-                visible: browserView.count === 0
-                text: qsTr("No browsers found")
-                color: root.textFaint
-                font.family: "Jura"
-                font.pixelSize: 14
-                font.weight: Font.Light
-                horizontalAlignment: Text.AlignHCenter
-            }
-
-            Text {
-                id: errorLabel
-
-                width: parent.width
-                visible: root.launchError !== ""
-                text: root.launchError
-                color: "#f87171"
-                font.family: "Jura"
-                font.pixelSize: 12
-                font.weight: Font.Light
-                elide: Text.ElideRight
-                horizontalAlignment: Text.AlignHCenter
-                Accessible.role: Accessible.Alert
-            }
-
-            TargetFooter {
-                id: footerBar
-
-                width: parent.width
-                accent: root.accent
-                textStrong: root.textStrong
-                textFaint: root.textFaint
-                presentedUrl: root.presentedUrl
-                verdict: root.worstVerdict
-                widthCapped: footerBar.naturalWidth > root.widthCap
-
-                onCopyRequested: launcher.copyToClipboard(root.presentedUrl)
-            }
-
-            Text {
-                id: warningLine
-
-                visible: root.redVerdict
-                text: qsTr("flagged by %1").arg(root.verdictSource)
-                color: "#f87171"
-                font.family: "Jura"
-                font.pixelSize: 12
-                font.weight: Font.Light
-                horizontalAlignment: Text.AlignHCenter
-                width: parent.width
-                Accessible.role: Accessible.Alert
-            }
+            visible: root.dissectionVisible
+            anchors.left: surface.left
+            anchors.right: surface.right
+            anchors.top: surface.bottom
+            anchors.topMargin: -root.drawerOverlap
+            height: dissectionPanel.implicitHeight + 2 * root.drawerVPad
+            radius: 12
+            color: "#f016233a"
+            border.width: 1
+            border.color: "#1af2f4f6"
 
             DissectionPanel {
                 id: dissectionPanel
 
-                visible: root.dissectionVisible
-                width: parent.width
+                anchors.centerIn: parent
+                width: parent.width - 2 * root.drawerVPad
                 presentedUrl: root.presentedUrl
                 pinned: settings.showDissection
             }
+        }
 
-            Row {
-                id: dotsRow
+        // The elevated main panel casts a shadow over both drawers —
+        // the depth cue, per the mock. Symmetric blur so both the top
+        // and the bottom drawer catch it.
+        MultiEffect {
+            anchors.fill: surface
+            source: surface
+            shadowEnabled: true
+            shadowBlur: 1.0
+            shadowVerticalOffset: 0
+            shadowColor: "#b0000000"
+        }
 
-                visible: root.queued
-                height: visible ? root.dotsRowHeight : 0
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: root.dotsSpacing
+        Rectangle {
+            id: surface
+            z: 1
 
-                Repeater {
-                    model: queue.count
+            anchors.fill: parent
+            anchors.leftMargin: root.surfaceMargin
+                + (root.queued ? root.satelliteOverhang : 0)
+            anchors.rightMargin: root.surfaceMargin
+                + (root.queued ? root.satelliteOverhang : 0)
+            anchors.topMargin: root.surfaceMargin
+                + (root.queued ? root.badgeOverhang : 0)
+                + (root.lightsVisible ? root.lightsPeek : 0)
+            anchors.bottomMargin: root.surfaceMargin
+                + (root.queued ? root.badgeOverhang : 0)
+                + (root.dissectionVisible ? root.dissectionPeek : 0)
+            radius: 16
+            color: "#e61e293b"
+            border.width: 1
+            border.color: "#26f2f4f6"
 
-                    Rectangle {
-                        width: index === queue.cursor ? 18 : 8
-                        height: root.dotsRowHeight
-                        radius: 4
-                        color: index === queue.cursor ? root.accent
-                                                      : root.textFaint
+            Column {
+                id: contentColumn
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: root.contentPad
+                spacing: 10
+
+                ListView {
+                    id: browserView
+
+                    width: Math.min(contentWidth, parent.width)
+                    x: (parent.width - width) / 2
+                    height: root.cellHeight
+                    orientation: ListView.Horizontal
+                    interactive: contentWidth > width
+                    clip: true
+                    model: browserRegistry
+                    currentIndex: root.selectedIndex
+                    spacing: root.rowSpacing
+                    delegate: BrowserDelegate {}
+                    Accessible.role: Accessible.List
+                    Accessible.name: qsTr("Browsers")
+
+                    onCountChanged: {
+                        if (root.selectedIndex >= count)
+                            root.selectedIndex = Math.max(0, count - 1)
+                    }
+                }
+
+                Text {
+                    id: emptyLabel
+
+                    width: parent.width
+                    visible: browserView.count === 0
+                    text: qsTr("No browsers found")
+                    color: root.textFaint
+                    font.family: "Jura"
+                    font.pixelSize: 14
+                    font.weight: Font.Light
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                Text {
+                    id: errorLabel
+
+                    width: parent.width
+                    visible: root.launchError !== ""
+                    text: root.launchError
+                    color: "#f87171"
+                    font.family: "Jura"
+                    font.pixelSize: 12
+                    font.weight: Font.Light
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
+                    Accessible.role: Accessible.Alert
+                }
+
+                TargetFooter {
+                    id: footerBar
+
+                    width: parent.width
+                    accent: root.accent
+                    textStrong: root.textStrong
+                    textFaint: root.textFaint
+                    presentedUrl: root.presentedUrl
+                    verdict: root.worstVerdict
+                    widthCapped: footerBar.naturalWidth > root.widthCap
+
+                    onCopyRequested:
+                        launcher.copyToClipboard(root.presentedUrl)
+                }
+
+                Text {
+                    id: warningLine
+
+                    visible: root.redVerdict
+                    text: qsTr("flagged by %1").arg(root.verdictSource)
+                    color: "#f87171"
+                    font.family: "Jura"
+                    font.pixelSize: 12
+                    font.weight: Font.Light
+                    horizontalAlignment: Text.AlignHCenter
+                    width: parent.width
+                    Accessible.role: Accessible.Alert
+                }
+
+                Row {
+                    id: dotsRow
+
+                    visible: root.queued
+                    height: visible ? root.dotsRowHeight : 0
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: root.dotsSpacing
+
+                    Repeater {
+                        model: queue.count
+
+                        Rectangle {
+                            width: index === queue.cursor ? 18 : 8
+                            height: root.dotsRowHeight
+                            radius: 4
+                            color: index === queue.cursor ? root.accent
+                                                          : root.textFaint
+                        }
                     }
                 }
             }
-        }
-
-        VariantPills {
-            id: variantPills
-
-            visible: root.pillsVisible
-            anchors.left: parent.left
-            anchors.leftMargin: root.contentPad
-            anchors.verticalCenter: parent.verticalCenter
-            variants: root.payloadVariants
-            selection: root.selectedVariant
-
-            onSelectRequested: (index) => root.selectedVariant = index
         }
     }
 

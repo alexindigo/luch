@@ -22,6 +22,7 @@
 #include "browserregistry.h"
 #include "config.h"
 #include "dbustransport.h"
+#include "backgroundeffect.h"
 #include "launcher.h"
 #include "pickerwindow.h"
 #include "queue.h"
@@ -315,6 +316,9 @@ const QString priorShellIntegration =
                                              &urlTools);
     engine.rootContext()->setContextProperty(QStringLiteral("settings"),
                                              &settings);
+    BackgroundEffect backgroundEffect;
+    engine.rootContext()->setContextProperty(QStringLiteral("backgroundEffect"),
+                                             &backgroundEffect);
     engine.load(QUrl(QStringLiteral("qrc:/Luch/ui/Main.qml")));
     if (engine.rootObjects().isEmpty()) {
         qCritical() << "luch: QML root failed to load";
@@ -332,6 +336,10 @@ const QString priorShellIntegration =
     if (config.focusFollowOnOpen())
         launcher.setActivationSource(&activationRequester, window);
     launcher.setDbusTransport(&dbusTransport);
+
+    // Picker surface exists once the scene renders; the effect client
+    // retries its pending blur region until then.
+    backgroundEffect.setWindow(window);
 
     // Queue cursor → per-item target/launcher/registry repopulation.
     QObject::connect(&queue, &Luch::TargetQueue::currentChanged, &app,

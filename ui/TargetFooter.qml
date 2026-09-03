@@ -209,6 +209,34 @@ Item {
         }
     }
 
+    // verdict dot — the Detect verdict that applies to the presented
+    // URL, a LEADING indicator left of the URL (per the mock)
+    Rectangle {
+        id: verdictDot
+
+        visible: footer.verdict !== ""
+        Accessible.ignored: footer.verdict === ""
+        width: footer.dotSize
+        height: footer.dotSize
+        radius: footer.dotSize / 2
+        anchors.right: segFlow.left
+        anchors.rightMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        color: footer.verdict === "red" ? "#f87171" : "#fbbf24"
+
+        SequentialAnimation on opacity {
+            running: footer.verdict === "red"
+            loops: Animation.Infinite
+            NumberAnimation { from: 1.0; to: 0.35; duration: 500 }
+            NumberAnimation { from: 0.35; to: 1.0; duration: 500 }
+        }
+
+        Accessible.role: Accessible.Indicator
+        Accessible.name: footer.verdict === "red"
+                         ? qsTr("dangerous")
+                         : qsTr("flagged")
+    }
+
     Item {
         id: copyControl
 
@@ -219,34 +247,6 @@ Item {
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Copy target")
         Accessible.onPressAction: footer.copyRequested()
-
-        // verdict dot — the Detect verdict that applies to the
-        // presented URL, unmissable next to the copy control
-        Rectangle {
-            id: verdictDot
-
-            visible: footer.verdict !== ""
-            Accessible.ignored: footer.verdict === ""
-            width: footer.dotSize
-            height: footer.dotSize
-            radius: footer.dotSize / 2
-            anchors.left: parent.left
-            anchors.leftMargin: -footer.dotSize - 4
-            anchors.verticalCenter: parent.verticalCenter
-            color: footer.verdict === "red" ? "#f87171" : "#fbbf24"
-
-            SequentialAnimation on opacity {
-                running: footer.verdict === "red"
-                loops: Animation.Infinite
-                NumberAnimation { from: 1.0; to: 0.35; duration: 500 }
-                NumberAnimation { from: 0.35; to: 1.0; duration: 500 }
-            }
-
-            Accessible.role: Accessible.Indicator
-            Accessible.name: footer.verdict === "red"
-                             ? qsTr("dangerous")
-                             : qsTr("flagged")
-        }
 
         XdgIcon {
             id: copyIcon

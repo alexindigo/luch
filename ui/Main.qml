@@ -118,9 +118,31 @@ Window {
 
     onPresentedUrlChanged: launcher.setPresentedUrl(presentedUrl)
 
+    // Translucent areas of the picker, in surface-local coordinates —
+    // the main panel plus any open drawers. The compositor blurs the
+    // background behind exactly these rects (frosted glass via
+    // ext-background-effect-v1; silent plain-alpha fallback elsewhere).
+    readonly property var blurRects: {
+        const rects = [{ x: stage.x + surface.x, y: stage.y + surface.y,
+                         width: surface.width, height: surface.height }]
+        if (lightsVisible)
+            rects.push({ x: stage.x + lightsDrawer.x,
+                         y: stage.y + lightsDrawer.y,
+                         width: lightsDrawer.width,
+                         height: lightsDrawer.height })
+        if (dissectionVisible)
+            rects.push({ x: stage.x + dissectionDrawer.x,
+                         y: stage.y + dissectionDrawer.y,
+                         width: dissectionDrawer.width,
+                         height: dissectionDrawer.height })
+        return rects
+    }
+    onBlurRectsChanged: backgroundEffect.setBlurRects(blurRects)
+
     Component.onCompleted: {
         refreshFromPayload()
         launcher.setPresentedUrl(presentedUrl)
+        backgroundEffect.setBlurRects(blurRects)
     }
 
     function launchAt(index: int) {
@@ -183,10 +205,11 @@ Window {
             anchors.bottomMargin: -root.drawerOverlap
             height: root.lightsPeek + root.drawerOverlap
             radius: 12
-            // Tonal family of the main surface, a hair darker for
-            // recess — the separation itself is the main panel's
-            // shadow, not color contrast.
-            color: "#f016233a"
+            // Tonal family of the main surface, a touch lighter for
+            // recess (the front panel is the most solid element — no
+            // alpha compounding in the overlap); the separation itself
+            // is the main panel's shadow plus the frosted blur.
+            color: "#d916233a"
             border.width: 1
             border.color: "#1af2f4f6"
 
@@ -219,7 +242,7 @@ Window {
             anchors.topMargin: -root.drawerOverlap
             height: root.dissectionPeek + root.drawerOverlap
             radius: 12
-            color: "#f016233a"
+            color: "#d916233a"
             border.width: 1
             border.color: "#1af2f4f6"
 
@@ -237,16 +260,17 @@ Window {
             }
         }
 
-        // The elevated main panel casts a shadow over both drawers —
-        // the depth cue, per the mock. Symmetric blur so both the top
-        // and the bottom drawer catch it.
+        // The elevated main panel casts a soft low-alpha elevation
+        // shadow onto both drawers — a hint of depth under the frosted
+        // glass, not a halo (blur already separates panel from
+        // background). Slight downward bias: natural light-from-above.
         MultiEffect {
             anchors.fill: surface
             source: surface
             shadowEnabled: true
-            shadowBlur: 1.0
-            shadowVerticalOffset: 0
-            shadowColor: "#b0000000"
+            shadowBlur: 0.7
+            shadowVerticalOffset: 6
+            shadowColor: "#4d000000"
         }
 
         Rectangle {

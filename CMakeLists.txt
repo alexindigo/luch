@@ -20,6 +20,10 @@ find_path(WAYLAND_PROTOCOLS_PATH
           staging/xdg-activation/xdg-activation-v1.xml
           PATHS /usr/share/wayland-protocols
           REQUIRED)
+find_path(WAYLAND_PROTOCOLS_BGFX_PATH
+          staging/ext-background-effect/ext-background-effect-v1.xml
+          PATHS /usr/share/wayland-protocols
+          REQUIRED)
 # XdgIcon QML module — resolves real browser icons in the picker.
 find_package(xdgiconqml REQUIRED)
 # xdgiconqml exports xdgiconqml::xdgiconqml; Qt's QML import machinery looks
@@ -32,6 +36,8 @@ endif()
 qt_add_executable(luch
     src/augmentationpipeline.cpp
     src/augmentationpipeline.h
+    src/backgroundeffect.cpp
+    src/backgroundeffect.h
     src/browserregistry.cpp
     src/browserregistry.h
     src/chromiumsocket.cpp
@@ -66,6 +72,7 @@ qt_add_executable(luch
 
 qt6_generate_wayland_protocol_client_sources(luch
     FILES ${WAYLAND_PROTOCOLS_PATH}/staging/xdg-activation/xdg-activation-v1.xml
+          ${WAYLAND_PROTOCOLS_BGFX_PATH}/staging/ext-background-effect/ext-background-effect-v1.xml
 )
 
 qt_add_qml_module(luch

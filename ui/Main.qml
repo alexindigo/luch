@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 
 Window {
     id: root
@@ -15,13 +14,14 @@ Window {
 
     // Drawer/subpanel geometry (physics-mapped, binding per the plan):
     // a drawer is narrower than its cabinet and sticks out from behind
-    // it — the cabinet overlaps the drawer's inner edge and shadows it;
-    // contents live fully inside the visible (peeking) part.
-    readonly property int shadowPad: 28     // window room for the shadow
+    // it; the tucked part is CUT at the cabinet's edge (translucent
+    // surfaces must not stack — nothing renders behind the panel), so
+    // the seam end is square-cut and the free end keeps its rounding.
+    readonly property int windowMargin: 6   // clear of screen edges
     readonly property int drawerInset: 28   // drawers strictly narrower
-    readonly property int drawerOverlap: 14 // cabinet overlaps inner edge
     readonly property int drawerVPad: 12    // the drawer's frame —
     readonly property int drawerHPad: 12    // uniform on every edge
+    readonly property int drawerRadius: 12
 
     // Visible drawer portions above/below the main panel's edges — the
     // overlap rides behind the cabinet, never eating content budget.
@@ -39,7 +39,7 @@ Window {
 
     readonly property int visibleCells: Math.max(
         1, Math.min(browserView.count, maxVisible))
-    readonly property int chrome: shadowPad * 2 + surfaceMargin * 2
+    readonly property int chrome: windowMargin * 2 + surfaceMargin * 2
         + contentPad * 2
     readonly property int stripWidth: visibleCells * cellWidth
         + Math.max(0, visibleCells - 1) * rowSpacing
@@ -199,16 +199,17 @@ Window {
         id: stage
 
         anchors.fill: parent
-        anchors.leftMargin: root.shadowPad
-        anchors.rightMargin: root.shadowPad
-        anchors.topMargin: root.shadowPad + root.panelBias
-        anchors.bottomMargin: root.shadowPad
+        anchors.leftMargin: root.windowMargin
+        anchors.rightMargin: root.windowMargin
+        anchors.topMargin: root.windowMargin + root.panelBias
+        anchors.bottomMargin: root.windowMargin
 
-        // Lights drawer — narrower than the cabinet, sliding out from
-        // behind its top edge; the cabinet overlaps the drawer's inner
-        // edge and shadows it. Contents sit fully inside the visible
-        // part (labels clear of the cabinet edge).
-        Rectangle {
+        // Lights drawer — narrower than the cabinet, sticking out of
+        // its top edge. The container ends exactly at the cabinet's
+        // edge and clips: the tucked part is cut away (no translucent
+        // stacking under the panel), so the seam end is square and the
+        // free end keeps its rounding. Same translucency as the panel.
+        Item {
             id: lightsDrawer
 
             visible: root.lightsVisible
@@ -217,35 +218,37 @@ Window {
             anchors.leftMargin: root.drawerInset
             anchors.rightMargin: root.drawerInset
             anchors.bottom: surface.top
-            anchors.bottomMargin: -root.drawerOverlap
-            height: root.lightsPeek + root.drawerOverlap
-            radius: 12
-            // Tonal family of the main surface, a touch lighter for
-            // recess (the front panel is the most solid element — no
-            // alpha compounding in the overlap); the separation itself
-            // is the main panel's shadow plus the frosted blur.
-            color: "#bf1e293a"
-            border.width: 1
-            border.color: "#1af2f4f6"
+            height: root.lightsPeek
+            clip: true
 
-            LightsStrip {
-                id: lightsStrip
-
+            Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.leftMargin: root.drawerHPad
-                anchors.rightMargin: root.drawerHPad
-                anchors.topMargin: root.drawerVPad
-                roster: pluginRoster
-                trace: root.payloadTrace
+                height: parent.height + root.drawerRadius
+                radius: root.drawerRadius
+                color: "#cc1e293b"
+                border.width: 1
+                border.color: "#1af2f4f6"
+
+                LightsStrip {
+                    id: lightsStrip
+
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.leftMargin: root.drawerHPad
+                    anchors.rightMargin: root.drawerHPad
+                    anchors.topMargin: root.drawerVPad
+                    roster: pluginRoster
+                    trace: root.payloadTrace
+                }
             }
         }
 
-        // Dissection drawer — same physics at the bottom edge: narrower,
-        // from behind, cabinet overlapping its inner edge; the anatomy
-        // table fills the drawer (no void).
-        Rectangle {
+        // Dissection drawer — same physics at the bottom edge: square
+        // cut at the seam (clipped), rounded at the free end.
+        Item {
             id: dissectionDrawer
 
             visible: root.dissectionVisible
@@ -254,38 +257,32 @@ Window {
             anchors.leftMargin: root.drawerInset
             anchors.rightMargin: root.drawerInset
             anchors.top: surface.bottom
-            anchors.topMargin: -root.drawerOverlap
-            height: root.dissectionPeek + root.drawerOverlap
-            radius: 12
-            color: "#bf1e293a"
-            border.width: 1
-            border.color: "#1af2f4f6"
+            height: root.dissectionPeek
+            clip: true
 
-            DissectionPanel {
-                id: dissectionPanel
-
+            Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.leftMargin: root.drawerHPad
-                anchors.rightMargin: root.drawerHPad
-                anchors.bottomMargin: root.drawerVPad
-                presentedUrl: root.presentedUrl
-                pinned: settings.showDissection
-            }
-        }
+                height: parent.height + root.drawerRadius
+                radius: root.drawerRadius
+                color: "#cc1e293b"
+                border.width: 1
+                border.color: "#1af2f4f6"
 
-        // The elevated main panel casts a soft low-alpha elevation
-        // shadow onto both drawers — a hint of depth under the frosted
-        // glass, not a halo (blur already separates panel from
-        // background). Slight downward bias: natural light-from-above.
-        MultiEffect {
-            anchors.fill: surface
-            source: surface
-            shadowEnabled: true
-            shadowBlur: 0.7
-            shadowVerticalOffset: 6
-            shadowColor: "#4d000000"
+                DissectionPanel {
+                    id: dissectionPanel
+
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.leftMargin: root.drawerHPad
+                    anchors.rightMargin: root.drawerHPad
+                    anchors.bottomMargin: root.drawerVPad
+                    presentedUrl: root.presentedUrl
+                    pinned: settings.showDissection
+                }
+            }
         }
 
         Rectangle {

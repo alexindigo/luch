@@ -26,6 +26,10 @@ Item {
     // " … " marker instead of a sliver of path.
     readonly property int minMiddleWidth: 48
 
+    // The leading verdict indicator shifts the URL right so the dot
+    // sits INSIDE the panel's content frame, not in its padding.
+    readonly property int dotShift: verdict !== "" ? dotSize + 8 : 0
+
     readonly property real naturalWidth: schemeText.implicitWidth
         + hostText.implicitWidth + midText.implicitWidth
         + tailText.implicitWidth + copyControl.width + copyGap
@@ -36,7 +40,7 @@ Item {
         - midText.implicitWidth + markerText.implicitWidth
 
     readonly property real textAvailWidth:
-        width - copyControl.width - copyGap
+        width - copyControl.width - copyGap - dotShift
 
     // Room left for the middle once scheme, host and tail (never
     // truncated) have taken theirs.
@@ -46,8 +50,9 @@ Item {
 
     property bool widthCapped: false
 
-    readonly property bool overflow: naturalWidth > width
-    readonly property bool wrapping: widthCapped && stubWidth > width
+    readonly property bool overflow: naturalWidth + dotShift > width
+    readonly property bool wrapping: widthCapped
+        && stubWidth + dotShift > width
     // The container pushed back: elide the middle — only as much as
     // needed to fit, no more. The middle renders as two fragments split
     // around a visibly separated marker.
@@ -78,6 +83,7 @@ Item {
 
         Accessible.ignored: true // announced via the parent's name
 
+        x: footer.dotShift
         anchors.verticalCenter: parent.verticalCenter
         // Overflow modes fill the container exactly; the full line gets
         // 1px of slack so rounding never wraps the tail onto a new row.

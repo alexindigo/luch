@@ -76,7 +76,7 @@ Item {
     readonly property int rowHeight: 18
     readonly property int rowGap: 12     // label→value column gap
     readonly property int labelCol: 56   // right-aligned label column
-    readonly property int rowPad: 6
+    readonly property int rowPad: 0   // the drawer's frame is the padding
     // Content width when the parent gives us the drawer's inner width —
     // the table fills the drawer horizontally (no void).
     readonly property real contentWidth: width - 2 * rowPad
@@ -103,7 +103,7 @@ Item {
 
         anchors.left: parent.left
         anchors.leftMargin: dissection.rowPad
-        anchors.verticalCenter: parent.verticalCenter
+        anchors.bottom: parent.bottom
         spacing: 2
 
         Repeater {

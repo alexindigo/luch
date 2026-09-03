@@ -20,8 +20,8 @@ Window {
     readonly property int shadowPad: 28     // window room for the shadow
     readonly property int drawerInset: 28   // drawers strictly narrower
     readonly property int drawerOverlap: 14 // cabinet overlaps inner edge
-    readonly property int drawerVPad: 10    // content padding in drawer
-    readonly property int drawerHPad: 14
+    readonly property int drawerVPad: 12    // the drawer's frame —
+    readonly property int drawerHPad: 12    // uniform on every edge
 
     // Visible drawer portions above/below the main panel's edges — the
     // overlap rides behind the cabinet, never eating content budget.
@@ -46,23 +46,35 @@ Window {
     readonly property real widthCap: widthCapFactor * Screen.width
     readonly property bool lightsVisible: lightsStrip.chain.length > 0
 
+    readonly property bool dissectionVisible:
+        dissectionPanel.pinned || redVerdict
+
+    // The drawers are asymmetric (a thin lights peek above, a tall
+    // dissection peek below) — without compensation the cabinet's
+    // center rides above the screen's center. Growing the window by the
+    // full imbalance moves its center down half as much, so the bias
+    // is the whole difference: the MAIN PANEL (the furniture's face)
+    // ends up centered on screen.
+    readonly property int panelBias:
+        Math.max(0, dissectionPeek - lightsPeek)
+
     width: chrome + (queued ? 2 * satelliteOverhang : 0)
            + Math.ceil(Math.max(stripWidth,
-                                Math.min(footerBar.naturalWidth + 2,
+                                Math.min(footerBar.naturalWidth
+                                         + footerBar.dotShift + 2,
                                          widthCap),
                                 lightsVisible
                                     ? lightsStrip.implicitWidth
                                       + 2 * (drawerInset + drawerHPad)
                                       : 0))
-    height: chrome + (queued ? 2 * badgeOverhang : 0) + cellHeight
+    height: chrome + panelBias
+            + (queued ? 2 * badgeOverhang : 0) + cellHeight
             + (footerBar.height > 0 ? footerSpacing + footerBar.height : 0)
             + (launchError !== "" ? errorLabel.height + 10 : 0)
             + (redVerdict ? warningLine.height + 10 : 0)
             + (queued ? 10 + dotsRowHeight : 0)
             + (lightsVisible ? lightsPeek : 0)
             + (dissectionVisible ? dissectionPeek : 0)
-    readonly property bool dissectionVisible:
-        dissectionPanel.pinned || redVerdict
     visible: false
     color: "transparent"
 
@@ -187,7 +199,10 @@ Window {
         id: stage
 
         anchors.fill: parent
-        anchors.margins: root.shadowPad
+        anchors.leftMargin: root.shadowPad
+        anchors.rightMargin: root.shadowPad
+        anchors.topMargin: root.shadowPad + root.panelBias
+        anchors.bottomMargin: root.shadowPad
 
         // Lights drawer — narrower than the cabinet, sliding out from
         // behind its top edge; the cabinet overlaps the drawer's inner
@@ -209,7 +224,7 @@ Window {
             // recess (the front panel is the most solid element — no
             // alpha compounding in the overlap); the separation itself
             // is the main panel's shadow plus the frosted blur.
-            color: "#d916233a"
+            color: "#bf1e293a"
             border.width: 1
             border.color: "#1af2f4f6"
 
@@ -242,7 +257,7 @@ Window {
             anchors.topMargin: -root.drawerOverlap
             height: root.dissectionPeek + root.drawerOverlap
             radius: 12
-            color: "#d916233a"
+            color: "#bf1e293a"
             border.width: 1
             border.color: "#1af2f4f6"
 
@@ -289,7 +304,7 @@ Window {
                 + (root.queued ? root.badgeOverhang : 0)
                 + (root.dissectionVisible ? root.dissectionPeek : 0)
             radius: 16
-            color: "#e61e293b"
+            color: "#cc1e293b"
             border.width: 1
             border.color: "#26f2f4f6"
 
@@ -361,7 +376,8 @@ Window {
                     textFaint: root.textFaint
                     presentedUrl: root.presentedUrl
                     verdict: root.worstVerdict
-                    widthCapped: footerBar.naturalWidth > root.widthCap
+                    widthCapped: footerBar.naturalWidth
+                                 + footerBar.dotShift > root.widthCap
 
                     onCopyRequested:
                         launcher.copyToClipboard(root.presentedUrl)

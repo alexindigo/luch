@@ -31,10 +31,8 @@ Item {
         : ""
     readonly property bool hostIsBare:
         parts.host !== "" && domain !== "" && parts.host === domain
-    readonly property bool portIsDefault:
-        parts.port === -1
-        || (parts.scheme === "https://" && parts.port === 443)
-        || (parts.scheme === "http://" && parts.port === 80)
+    // Color rule: values present in the URL render bright; only absent
+    // or implied values (none, implicit default port, empty path) dim.
     readonly property string portValue: {
         if (parts.port !== -1)
             return String(parts.port)
@@ -51,7 +49,7 @@ Item {
 
     readonly property var rows: [
         { label: qsTr("scheme"), value: dissection.parts.scheme,
-          dim: true },
+          dim: dissection.parts.scheme === "" },
         { label: qsTr("host"),
           value: dissection.hostIsBare
                  ? qsTr("none") : dissection.hostPrefix,
@@ -59,9 +57,9 @@ Item {
         { label: qsTr("domain"), value: dissection.domain,
           dim: dissection.domain === "" },
         { label: qsTr("port"), value: dissection.portValue,
-          dim: dissection.portIsDefault },
+          dim: dissection.parts.port === -1 },
         { label: qsTr("path"), value: dissection.parts.path,
-          dim: false },
+          dim: dissection.parts.path === "" },
         { label: qsTr("query"),
           value: dissection.queryAbsent ? qsTr("none")
                                         : "?" + dissection.parts.query,

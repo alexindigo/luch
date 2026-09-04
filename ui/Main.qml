@@ -134,19 +134,63 @@ Window {
     // the main panel plus any open drawers. The compositor blurs the
     // background behind exactly these rects (frosted glass via
     // ext-background-effect-v1; silent plain-alpha fallback elsewhere).
+    //
+    // wl_region is axis-aligned rects, so rounded silhouettes are
+    // stair-stepped: core + side bands + N slices per rounded corner.
+    // Slices bias slightly INSIDE the shape (ceil at the restrictive
+    // edge) — a sub-pixel sliver unblurred under the 80% tint is
+    // invisible, while any blur outside the silhouette (the corner
+    // notch) glares. Drawer seam ends are square (clip-cut) — only the
+    // free ends round.
+    function roundedBlurRects(x, y, w, h, r, roundTop, roundBottom) {
+        const rects = [{ x: x, y: y + (roundTop ? r : 0),
+                         width: w,
+                         height: h - (roundTop ? r : 0)
+                                  - (roundBottom ? r : 0) }]
+        if (roundTop)
+            rects.push({ x: x + r, y: y, width: w - 2 * r, height: r })
+        if (roundBottom)
+            rects.push({ x: x + r, y: y + h - r,
+                         width: w - 2 * r, height: r })
+        const N = 8
+        const s = r / N
+        for (let i = 0; i < N; i++) {
+            const t0 = i * s
+            // arc: x_inset(t) = r - sqrt(r² - (r-t)²); slice restricted
+            // at its most conservative edge (t0 for both orientations)
+            const inset = Math.ceil(
+                r - Math.sqrt(r * r - Math.pow(r - t0, 2)))
+            if (roundTop) {
+                rects.push({ x: x + inset, y: y + t0,
+                             width: r - inset, height: s })
+                rects.push({ x: x + w - r, y: y + t0,
+                             width: r - inset, height: s })
+            }
+            if (roundBottom) {
+                rects.push({ x: x + inset,
+                             y: y + h - t0 - s,
+                             width: r - inset, height: s })
+                rects.push({ x: x + w - r, y: y + h - t0 - s,
+                             width: r - inset, height: s })
+            }
+        }
+        return rects
+    }
+
     readonly property var blurRects: {
-        const rects = [{ x: stage.x + surface.x, y: stage.y + surface.y,
-                         width: surface.width, height: surface.height }]
+        const rects = roundedBlurRects(
+            stage.x + surface.x, stage.y + surface.y,
+            surface.width, surface.height, 16, true, true)
         if (lightsVisible)
-            rects.push({ x: stage.x + lightsDrawer.x,
-                         y: stage.y + lightsDrawer.y,
-                         width: lightsDrawer.width,
-                         height: lightsDrawer.height })
+            rects.push(...roundedBlurRects(
+                stage.x + lightsDrawer.x, stage.y + lightsDrawer.y,
+                lightsDrawer.width, lightsDrawer.height,
+                drawerRadius, true, false))
         if (dissectionVisible)
-            rects.push({ x: stage.x + dissectionDrawer.x,
-                         y: stage.y + dissectionDrawer.y,
-                         width: dissectionDrawer.width,
-                         height: dissectionDrawer.height })
+            rects.push(...roundedBlurRects(
+                stage.x + dissectionDrawer.x, stage.y + dissectionDrawer.y,
+                dissectionDrawer.width, dissectionDrawer.height,
+                drawerRadius, false, true))
         return rects
     }
     onBlurRectsChanged: backgroundEffect.setBlurRects(blurRects)

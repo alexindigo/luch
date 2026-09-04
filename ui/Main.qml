@@ -58,7 +58,7 @@ Window {
     readonly property int panelBias:
         Math.max(0, dissectionPeek - lightsPeek)
 
-    width: chrome + (queued ? 2 * satelliteOverhang : 0)
+    width: chrome + pillOverhang + (queued ? 2 * satelliteOverhang : 0)
            + Math.ceil(Math.max(stripWidth,
                                 Math.min(footerBar.naturalWidth
                                          + footerBar.dotShift + 2,
@@ -86,11 +86,23 @@ Window {
     property int selectedIndex: 0
     property string launchError: ""
 
-    // The one URL the main panel knows: the final effective URL (the
-    // payload's trace tail; pills are hidden this round, so there is
-    // no variant selection). Footer, launch and copy consume it.
-    property string presentedUrl: ""
-    // Current payload trace entries — feed the lights subpanel.
+    // Variants = the original plus every distinct URL the chain
+    // produced ({url, label}); the newest auto-selects as it
+    // materializes. The pills are the file tabs driving this; footer,
+    // launch and copy all consume the presented (selected) URL.
+    property var payloadVariants: []
+    property int selectedVariant: 0
+    property int _previousVariantCount: 0
+    readonly property bool pillsVisible: payloadVariants.length > 1
+    readonly property string presentedUrl: payloadVariants.length > 0
+        ? payloadVariants[Math.max(0, Math.min(
+              selectedVariant, payloadVariants.length - 1))].url
+        : queue.currentRaw
+    // Room the file tabs claim left of the panel (window widens to
+    // match; the tab slide-in motion carries the re-center).
+    readonly property real pillOverhang:
+        pillsVisible ? variantPills.leftOverhang : 0
+    // Current payload trace entries — feed the lights drawer.
     property var payloadTrace: []
     // Worst Detect verdict for the current payload ("", "amber", "red")
     // and the source that flagged it — drives the verdict dot, the
@@ -99,10 +111,41 @@ Window {
     property string verdictSource: ""
     readonly property bool redVerdict: worstVerdict === "red"
 
+    function labelForPlugin(id) {
+        const pid = String(id || "")
+        for (let i = 0; i < pluginRoster.length; i++)
+            if (pluginRoster[i].id === pid)
+                return String(pluginRoster[i].title || pid)
+        return pid
+    }
+
     function refreshFromPayload() {
         const payload = queue.currentPayload
-        presentedUrl = (payload && payload.url)
-                       ? String(payload.url) : queue.currentRaw
+        const list = []
+        if (payload && payload.original && payload.original.url)
+            list.push({ url: String(payload.original.url),
+                        label: qsTr("original") })
+        if (payload && payload.trace) {
+            for (let i = 0; i < payload.trace.length; i++) {
+                const data = payload.trace[i].data
+                if (!data || !data.url)
+                    continue
+                const u = String(data.url)
+                let seen = false
+                for (let j = 0; j < list.length; j++)
+                    if (list[j].url === u) { seen = true; break }
+                if (!seen)
+                    list.push({ url: u,
+                                label: labelForPlugin(
+                                    payload.trace[i].plugin) })
+            }
+        }
+        payloadVariants = list
+        // Progressive materialization: a newly landed variant
+        // auto-selects (its tab slides in and merges).
+        if (list.length > _previousVariantCount)
+            selectedVariant = list.length - 1
+        _previousVariantCount = list.length
         payloadTrace = (payload && payload.trace) ? payload.trace : []
         refreshVerdict(payload && payload.detected
                        ? payload.detected : [])
@@ -191,6 +234,12 @@ Window {
                 stage.x + dissectionDrawer.x, stage.y + dissectionDrawer.y,
                 dissectionDrawer.width, dissectionDrawer.height,
                 drawerRadius, false, true))
+        if (pillsVisible) {
+            const pr = variantPills.blurRectList
+            for (let i = 0; i < pr.length; i++)
+                rects.push({ x: stage.x + pr[i].x, y: stage.y + pr[i].y,
+                             width: pr[i].width, height: pr[i].height })
+        }
         return rects
     }
     onBlurRectsChanged: backgroundEffect.setBlurRects(blurRects)
@@ -214,6 +263,7 @@ Window {
 
         function onCurrentChanged() {
             root.selectedIndex = 0
+            root._previousVariantCount = 0
             lightsStrip.reset()
             root.refreshFromPayload()
         }
@@ -243,7 +293,7 @@ Window {
         id: stage
 
         anchors.fill: parent
-        anchors.leftMargin: root.windowMargin
+        anchors.leftMargin: root.windowMargin + root.pillOverhang
         anchors.rightMargin: root.windowMargin
         anchors.topMargin: root.windowMargin + root.panelBias
         anchors.bottomMargin: root.windowMargin
@@ -459,6 +509,24 @@ Window {
                     }
                 }
             }
+        }
+
+        // File tabs — the URL variants, on the cabinet's left edge.
+        // Inside the stage so they paint above the surface: the active
+        // tab covers the panel's left border at the merge band (one
+        // continuous surface — the merge IS the selection signal).
+        VariantPills {
+            id: variantPills
+
+            anchors.fill: parent
+            visible: root.pillsVisible
+            variants: root.payloadVariants
+            selection: root.selectedVariant
+            panelLeft: surface.x
+            footerLineBottom: surface.y + contentColumn.y
+                              + footerBar.y + footerBar.height
+
+            onSelectRequested: (index) => root.selectedVariant = index
         }
     }
 
